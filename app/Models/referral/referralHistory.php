@@ -11,6 +11,7 @@ class referralHistory extends Model
         'referralID',
         'receivingHospital',
         'referralStatus',
+        'arrived',
         
     ];
     protected $table = 'patientreferralhistory';

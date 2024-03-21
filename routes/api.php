@@ -48,6 +48,8 @@ Route::middleware('auth:sanctum')->group(function(){
         Route::post('deferPatient','deferPatient');
         Route::post('reopenReferral','reopenReferral');
         Route::post('transferToOtherHCI','transferToOtherHCI');
+        Route::post('transferToOPCEN','transferToOPCEN');
+        Route::post('OPCENToOtherHCI','OPCENToOtherHCI');
     });
     
     Route::controller(AuthenticationController::class)->group(function(){

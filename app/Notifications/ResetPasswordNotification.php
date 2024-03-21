@@ -6,18 +6,21 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
+use Illuminate\Support\Facades\Crypt;
 
 class ResetPasswordNotification extends Notification
 {
     use Queueable;
 
     public $token;
+    public $email;
     /**
      * Create a new notification instance.
      */
-    public function __construct($token)
+    public function __construct($token, $email)
     {
-        $this->token=$token;
+        $this->token = $token;
+        $this->email = $email;
     }
 
     /**
@@ -35,7 +38,8 @@ class ResetPasswordNotification extends Notification
      */
     public function toMail(object $notifiable): MailMessage
     {
-        $url = env(key:'FRONT_APP') . "/forgot-password?token={$this->token}"; 
+        $url = env('FRONT_APP') . "/forgot-password?em=" . urlencode(Crypt::encryptString($this->email)) . "&token={$this->token}";
+
         return (new MailMessage)
         ->subject('JBLMGH-OURS | Verify Email')
         ->view('forgotPass', ['url' => $url]);
