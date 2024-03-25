@@ -1,5 +1,7 @@
 <?php
 
+use App\Events\WebSocketDemo;
+use App\Http\Controllers\testController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -14,5 +16,8 @@ use Illuminate\Support\Facades\Route;
 */
 
 Route::get('/', function () {
+    broadcast(new WebSocketDemo('asdfasdfasd!!!'));
     return view('welcome');
 });
+
+Route::get('test', [testController::class, 'test']);

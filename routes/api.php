@@ -10,6 +10,7 @@ use App\Http\Controllers\referral\SetPasswordController;
 use App\Http\Controllers\referral\testMailController;
 use App\Http\Controllers\referral\uploadFilesController;
 use App\Http\Controllers\referral\verificationController;
+use App\Http\Controllers\referral\MessageController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -50,6 +51,7 @@ Route::middleware('auth:sanctum')->group(function(){
         Route::post('transferToOtherHCI','transferToOtherHCI');
         Route::post('transferToOPCEN','transferToOPCEN');
         Route::post('OPCENToOtherHCI','OPCENToOtherHCI');
+        Route::post('broadcast', [MessageController::class, 'broadcast']);
     });
     
     Route::controller(AuthenticationController::class)->group(function(){
@@ -89,3 +91,5 @@ Route::group(['middleware' => 'api'], function () {
 Route::group(['middleware' => 'api'], function () {
     Route::post('setPassword', [SetPasswordController::class, 'setPassword'])->name('api.setPassword');
 });
+
+
