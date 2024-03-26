@@ -30,6 +30,7 @@ Route::middleware('auth:sanctum')->group(function(){
         Route::get('fetchDashboardCensus','fetchDashboardCensus');
         Route::get('fetchReferrals','fetchReferrals');
         Route::get('fetchReferralData','fetchReferralData');
+        Route::get('fetchReferralMessages','fetchReferralMessages');
         Route::get('fetchInboundPatients','fetchInboundPatients');
         Route::get('fetchOutboundPatients','fetchOutboundPatients');
         Route::get('fetchCivilStatus','fetchCivilStatus');
@@ -59,7 +60,7 @@ Route::middleware('auth:sanctum')->group(function(){
         Route::post('logout','logout');
         Route::post('createAccount','createAccount');
         Route::post('updatePassword','updatePassword');
-
+    
     });
 
     Route::controller(uploadFilesController::class)->group(function(){

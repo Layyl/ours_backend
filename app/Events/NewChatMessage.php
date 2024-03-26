@@ -10,20 +10,26 @@ use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-class NewChatMessage
+class NewChatMessage implements ShouldBroadcast
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
     public $message;
-    public $user;
+    public $user_id;
+    public $username;
     public $referralHistoryID;
+    public $sent_date;
+    public $sent_time;
     /**
      * Create a new event instance.
      */
-    public function __construct($message, $user, $referralHistoryID)
+    public function __construct($message, $user_id, $username, $referralHistoryID, $sent_date, $sent_time)
     {
         $this->message = $message;
-        $this->user = $user;
+        $this->user_id = $user_id;
+        $this->username = $username;
         $this->referralHistoryID = $referralHistoryID;
+        $this->sent_date = $sent_date;
+        $this->sent_time = $sent_time;
     }
 
     /**

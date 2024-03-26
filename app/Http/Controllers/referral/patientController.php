@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\referral\barangay;
 use App\Models\referral\civilStatus;
 use App\Models\referral\doctors;
+use App\Models\referral\Messages;
 use App\Models\referral\municipality;
 use App\Models\referral\patients;
 use App\Models\referral\province;
@@ -131,7 +132,21 @@ class patientController extends Controller{
         return response()->json(['referrals' => $query], 200);
     
     }
+
+    public function fetchReferralMessages(Request $request)
+    {
+        $encryptedReferralHistoryID = $request->input('referralHistoryID');
+        $referralHistoryID = Crypt::decrypt($encryptedReferralHistoryID);
+        $patientMessages = Messages::where('referralHistoryID', $referralHistoryID)
+        ->join('users as u', 'messages.user_id', '=', 'u.id')
+            ->select('messages.user_id', 'messages.message', 'messages.referralHistoryID', 'u.username',
+                Messages::raw("DATE_FORMAT(sent_at, '%M %e, %Y') as sent_date"), 
+                Messages::raw("DATE_FORMAT(sent_at, '%l:%i %p') as sent_time"))
+            ->get();
     
+        return $patientMessages;
+    }
+
     public function fetchInboundPatients(Request $request){
 
         $hciID = $request->input('hciID');

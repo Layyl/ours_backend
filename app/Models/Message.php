@@ -7,8 +7,12 @@ use Illuminate\Database\Eloquent\Model;
 
 class Message extends Model
 {
+    public $timestamps = false;
+    
+    protected $fillable = ['message', 'referralHistoryID', 'sent_at'];
 
-    protected $fillable = ['message', 'referralHistoryID'];
+ 
+
     public function user(){
         return $this->belongsto(User::class);
     }
