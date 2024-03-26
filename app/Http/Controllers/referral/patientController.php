@@ -111,7 +111,6 @@ class patientController extends Controller{
         ->join('activefacilities as receivingHospitalInst', 'patientreferralhistory.receivingHospital', '=', 'receivingHospitalInst.HealthFacilityCodeShort')
         ->leftJoin('patients as p', 'pr.patientID', '=', 'p.patientID')
         ->where('patientreferralhistory.referralhistoryID', '=', $referralHistoryID)
-        // ->where('patientreferralhistory.receivingHospital', '=', $hciID)
         ->orderBy('pr.created_at', 'DESC')
         ->get();
         foreach ($query as $referral) {
