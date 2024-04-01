@@ -93,7 +93,7 @@
       <table>
          <tr>
             <td width = "11rem">Referring Hospital or Facility:</td>
-            <td style = "border-bottom: 0.5px solid #000;">{{$data->description}}</td>
+            <td style = "border-bottom: 0.5px solid #000;">{{$data->referringHospitalDescription}}</td>
          </tr>
          <tr>
             <td width = "11rem">Contact Number of Hospital: </td>

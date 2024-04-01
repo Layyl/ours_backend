@@ -132,8 +132,7 @@ class patientController extends Controller{
     
     }
 
-    public function fetchReferralMessages(Request $request)
-    {
+    public function fetchReferralMessages(Request $request){
         $encryptedReferralHistoryID = $request->input('referralHistoryID');
         $referralHistoryID = Crypt::decrypt($encryptedReferralHistoryID);
         $patientMessages = Messages::where('referralHistoryID', $referralHistoryID)
@@ -545,6 +544,4 @@ class patientController extends Controller{
             'deferredCount' => $deferredCount,
         ], 200);
     }
-    
-
 }

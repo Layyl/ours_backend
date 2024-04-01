@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\referral\AuthenticationController;
+use App\Http\Controllers\referral\ErCountController;
 use App\Http\Controllers\referral\forgotPasswordController;
 use App\Http\Controllers\referral\medixDB;
 use App\Http\Controllers\referral\patientController;
@@ -65,6 +66,10 @@ Route::middleware('auth:sanctum')->group(function(){
 
     Route::controller(uploadFilesController::class)->group(function(){
         Route::post('upload','upload');
+    });
+
+    Route::controller(ErCountController::class)->group(function(){
+        Route::get('fetchERCount','fetchERCount');
     });
 
 });
