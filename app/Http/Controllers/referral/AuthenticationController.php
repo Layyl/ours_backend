@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\referral;
 
 use App\Http\Controllers\Controller;
+use App\Models\referral\Notifications;
 use App\Models\referral\persons;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -13,6 +14,8 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Support\Facades\Cookie;
 use App\Notifications\CustomVerifyEmailNotification;
+use Carbon\Carbon;
+
 class AuthenticationController extends Controller
 {
     public function createAccount(Request $request){
@@ -99,6 +102,21 @@ class AuthenticationController extends Controller
         $data = $query->get();
         return $data;
     }
+
+    public function fetchNotifications(Request $request)
+    {
+        $user_id = $request->input('user_id');
+        $notifications = Notifications::where('sent_to', $user_id)
+        ->orderBy('sent_at', 'desc')
+        ->get()
+        ->map(function ($notification) {
+            $notification->formatted_timestamp = Carbon::parse($notification->sent_at)->format('F j, Y h:i A'); 
+            return $notification; 
+        });
+
+    return response()->json(["notifications" => $notifications, "message" => "Success"], 200);
+    }
+
 
     public function updatePassword(Request $request){
     

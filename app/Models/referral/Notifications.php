@@ -12,7 +12,8 @@ class Notifications extends Model
     
     protected $fillable = ['notification', 'notificationType', 'referralHistoryID', 'sent_at'];
 
- 
+    protected $table = 'notifications';
+    protected $connection = 'mysql';
 
     public function user(){
         return $this->belongsto(User::class);

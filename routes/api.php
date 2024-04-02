@@ -52,12 +52,14 @@ Route::middleware('auth:sanctum')->group(function(){
         Route::post('reopenReferral','reopenReferral');
         Route::post('transferToOtherHCI','transferToOtherHCI');
         Route::post('transferToOPCEN','transferToOPCEN');
+        
         Route::post('OPCENToOtherHCI','OPCENToOtherHCI');
         Route::post('sendChat', [MessageController::class, 'sendChat']);
     });
     
     Route::controller(AuthenticationController::class)->group(function(){
         Route::get('fetchUsers','fetchUsers');
+        Route::get('fetchNotifications','fetchNotifications');
         Route::post('logout','logout');
         Route::post('createAccount','createAccount');
         Route::post('updatePassword','updatePassword');
