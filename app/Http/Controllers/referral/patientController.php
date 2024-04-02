@@ -2,12 +2,14 @@
 
 namespace App\Http\Controllers\referral;
 
+use App\Events\NewNotification;
 use App\Http\Controllers\Controller;
 use App\Models\referral\barangay;
 use App\Models\referral\civilStatus;
 use App\Models\referral\doctors;
 use App\Models\referral\Messages;
 use App\Models\referral\municipality;
+use App\Models\referral\Notifications;
 use App\Models\referral\patients;
 use App\Models\referral\province;
 use App\Models\referral\referralHistory;
@@ -18,6 +20,7 @@ use App\Models\referral\servicetypes;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 date_default_timezone_set('Asia/Manila');
 
@@ -256,6 +259,25 @@ class patientController extends Controller{
         $updateHistory = referralHistory::where("referralHistoryID", $request-> referralHistoryID)
         ->update(['referralStatus'=> 3]);
 
+        $user = Auth::user();
+        $user_id = $user->id;
+        $sent_to = $request->referringHospital;
+        $notification = sprintf("Your Patient %s %s %s has been accepted", $request->firstName, $request->middleName, $request->lastName);
+        $dateTime = Carbon::now();
+        $date = $dateTime->format('F j, Y'); 
+        $time = $dateTime->format('g:i A');
+        
+        $notif = new Notifications();
+        $notif->notification = $notification;
+        $notif->notificationType = 1;
+        $notif->referralID = $request->referralID;
+        $notif->user_id = $user->id; 
+        $notif->sent_to = $sent_to;
+        $notif->sent_at = $dateTime;
+        $notif->save();
+
+        event(new NewNotification($notification, $user_id, 1, $request->referralHistoryID, $sent_to, $date, $time));
+
         return response()->json(["message" => "Success"], 200);
     }
 
@@ -397,6 +419,27 @@ class patientController extends Controller{
         ]);
     
         $referralID = $referralHistory->id;
+
+        $user = Auth::user();
+        $user_id = $user->id;
+        $sent_to = $request->referringHospital;
+        $notification = sprintf("Your Patient %s %s %s has been referred to another Healthcare Institution", $request->firstName, $request->middleName, $request->lastName);
+        $dateTime = Carbon::now();
+        $date = $dateTime->format('F j, Y'); 
+        $time = $dateTime->format('g:i A');
+        
+        $notif = new Notifications();
+        $notif->notification = $notification;
+        $notif->notificationType = 3;
+        $notif->referralID = $request->referralID;
+        $notif->user_id = $user->id; 
+        $notif->sent_to = $sent_to;
+        $notif->sent_at = $dateTime;
+        $notif->save();
+
+        event(new NewNotification($notification, $user_id, 3, $request->referralHistoryID, $sent_to, $date, $time));
+
+
         return response()->json(["message" => "Referral Created", "referralID" => $referralID], 200);
     }
 
@@ -415,7 +458,29 @@ class patientController extends Controller{
         ]);
     
         $referralID = $referralHistory->id;
+        
+        $user = Auth::user();
+        $user_id = $user->id;
+        $sent_to = $request->referringHospital;
+        $notification = sprintf("Your Patient %s %s %s has been referred to OPCEN", $request->firstName, $request->middleName, $request->lastName);
+        $dateTime = Carbon::now();
+        $date = $dateTime->format('F j, Y'); 
+        $time = $dateTime->format('g:i A');
+        
+        $notif = new Notifications();
+        $notif->notification = $notification;
+        $notif->notificationType = 2;
+        $notif->referralID = $request->referralID;
+        $notif->user_id = $user->id; 
+        $notif->sent_to = $sent_to;
+        $notif->sent_at = $dateTime;
+        $notif->save();
+
+        event(new NewNotification($notification, $user_id, 2, $request->referralHistoryID, $sent_to, $date, $time));
+
         return response()->json(["message" => "Referral Created", "referralID" => $referralID], 200);
+
+
     }
 
     public function OPCENToOtherHCI(Request $request){
@@ -434,6 +499,27 @@ class patientController extends Controller{
         ]);
     
         $referralID = $referralHistory->id;
+
+        $referralID = $referralHistory->id;
+
+        $user = Auth::user();
+        $user_id = $user->id;
+        $sent_to = $request->referringHospital;
+        $notification = sprintf("Your Patient %s %s %s has been referred to another Healthcare Institution by OPCEN", $request->firstName, $request->middleName, $request->lastName);
+        $dateTime = Carbon::now();
+        $date = $dateTime->format('F j, Y'); 
+        $time = $dateTime->format('g:i A');
+        
+        $notif = new Notifications();
+        $notif->notification = $notification;
+        $notif->notificationType = 3;
+        $notif->referralID = $request->referralID;
+        $notif->user_id = $user->id; 
+        $notif->sent_to = $sent_to;
+        $notif->sent_at = $dateTime;
+        $notif->save();
+
+        event(new NewNotification($notification, $user_id, 3, $request->referralHistoryID, $sent_to, $date, $time));
         return response()->json(["message" => "Referral Created", "referralID" => $referralID], 200);
     }
 

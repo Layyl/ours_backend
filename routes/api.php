@@ -53,7 +53,7 @@ Route::middleware('auth:sanctum')->group(function(){
         Route::post('transferToOtherHCI','transferToOtherHCI');
         Route::post('transferToOPCEN','transferToOPCEN');
         Route::post('OPCENToOtherHCI','OPCENToOtherHCI');
-        Route::post('broadcast', [MessageController::class, 'broadcast']);
+        Route::post('sendChat', [MessageController::class, 'sendChat']);
     });
     
     Route::controller(AuthenticationController::class)->group(function(){

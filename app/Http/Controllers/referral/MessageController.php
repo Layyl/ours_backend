@@ -14,14 +14,13 @@ use Illuminate\Support\Facades\Auth;
 
 class MessageController extends Controller
 {
-    public function broadcast(Request $request)
+    public function sendChat(Request $request)
     {
         $request->validate([
             'message' => 'required|string',
             'referralHistoryID' => 'required|integer',
         ]);
 
-        // Get the authenticated user
         $user = Auth::user();
         $user_id = $user->id;
         $username = $user->username;

@@ -10,25 +10,27 @@ use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-class NewChatMessage implements ShouldBroadcast
+class NewNotification implements ShouldBroadcast
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
-    public $message;
+    public $notification;
     public $user_id;
-    public $username;
+    public $notificationType;
     public $referralHistoryID;
+    public $sent_to;
     public $sent_date;
     public $sent_time;
     
     /**
      * Create a new event instance.
      */
-    public function __construct($message, $user_id, $username, $referralHistoryID, $sent_date, $sent_time)
+    public function __construct($notification, $user_id, $notificationType, $referralHistoryID, $sent_to, $sent_date, $sent_time)
     {
-        $this->message = $message;
+        $this->notification = $notification;
         $this->user_id = $user_id;
-        $this->username = $username;
+        $this->notificationType = $notificationType;
         $this->referralHistoryID = $referralHistoryID;
+        $this->sent_to = $sent_to;
         $this->sent_date = $sent_date;
         $this->sent_time = $sent_time;
     }
@@ -38,10 +40,11 @@ class NewChatMessage implements ShouldBroadcast
      *
      * @return array<int, \Illuminate\Broadcasting\Channel>
      */
+
     public function broadcastOn(): array
     {
         return [
-            new Channel('chat'),
+            new Channel('notification'),
         ];
     }
 }
