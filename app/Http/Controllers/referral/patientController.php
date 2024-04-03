@@ -401,6 +401,26 @@ class patientController extends Controller{
         ]);
     
         $referralID = $referral->id;
+        $referralHistoryID = $referralHistory->referralHistoryID;
+
+        $user = Auth::user();
+        $user_id = $user->id;
+        $sent_to = $request->receivingHospital;
+        $notification = sprintf("You have an new referral: %s %s %s", $request->firstName, $request->middleName, $request->lastName);
+        $dateTime = Carbon::now();
+        $date = $dateTime->format('F j, Y'); 
+        $time = $dateTime->format('g:i A');
+        
+        $notif = new Notifications();
+        $notif->notification = $notification;
+        $notif->notificationType = 4;
+        $notif->referralID = $referralID;
+        $notif->user_id = $user->id; 
+        $notif->sent_to = $sent_to;
+        $notif->sent_at = $dateTime;
+        $notif->save();
+
+        event(new NewNotification($notification, $user_id, 3, $referralHistoryID, $sent_to, $date, $time));
         return response()->json(["message" => "Referral Created", "referralID" => $referralID], 200);
     }
     
@@ -498,8 +518,6 @@ class patientController extends Controller{
             'arrived' => 1,
         ]);
     
-        $referralID = $referralHistory->id;
-
         $referralID = $referralHistory->id;
 
         $user = Auth::user();
