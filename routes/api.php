@@ -35,6 +35,7 @@ Route::middleware('auth:sanctum')->group(function(){
         Route::get('fetchInboundPatients','fetchInboundPatients');
         Route::get('fetchOutboundPatients','fetchOutboundPatients');
         Route::get('fetchCivilStatus','fetchCivilStatus');
+        Route::get('fetchNationality','fetchNationality');
         Route::get('fetchReferralReasons','fetchReferralReasons');
         Route::get('fetchProvince','fetchProvince');
         Route::get('fetchMunicipality','fetchMunicipality');
@@ -47,11 +48,15 @@ Route::middleware('auth:sanctum')->group(function(){
         Route::post('updatePatientData','updatePatientData');
         Route::post('updateVitalSigns','updateVitalSigns');
         Route::post('createNewReferral','createNewReferral');
+        Route::post('setToOngoing','setToOngoing');
         Route::post('acceptPatient','acceptPatient');
         Route::post('deferPatient','deferPatient');
+        Route::post('cancelReferral','cancelReferral');
+        Route::post('setToExpired','setToExpired');
         Route::post('reopenReferral','reopenReferral');
         Route::post('transferToOtherHCI','transferToOtherHCI');
         Route::post('transferToOPCEN','transferToOPCEN');
+        Route::post('returnToJBLMGH','returnToJBLMGH');
         
         Route::post('OPCENToOtherHCI','OPCENToOtherHCI');
         Route::post('sendChat', [MessageController::class, 'sendChat']);
@@ -73,6 +78,10 @@ Route::middleware('auth:sanctum')->group(function(){
     Route::controller(ErCountController::class)->group(function(){
         Route::get('fetchERCount','fetchERCount');
     });
+
+});
+
+Route::controller(patientController::class)->group(function(){
 
 });
 

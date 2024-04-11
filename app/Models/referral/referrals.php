@@ -18,6 +18,7 @@ class referrals extends Model
         'receivingDepartment',
         'assignedDoctor',
         'civilStatus',
+        'nationality',
         'street',
         'provinceID',
         'municipalityID',

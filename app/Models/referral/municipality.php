@@ -7,5 +7,5 @@ use Illuminate\Database\Eloquent\Model;
 class municipality extends Model
 {
     protected $table = 'municipality';
-    protected $connection = 'mysql';
+    protected $connection = 'sqlsrv';
 }

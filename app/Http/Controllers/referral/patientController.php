@@ -9,6 +9,7 @@ use App\Models\referral\civilStatus;
 use App\Models\referral\doctors;
 use App\Models\referral\Messages;
 use App\Models\referral\municipality;
+use App\Models\referral\Nationality;
 use App\Models\referral\Notifications;
 use App\Models\referral\patients;
 use App\Models\referral\province;
@@ -136,11 +137,11 @@ class patientController extends Controller{
     }
 
     public function fetchReferralMessages(Request $request){
-        $encryptedReferralHistoryID = $request->input('referralHistoryID');
-        $referralHistoryID = Crypt::decrypt($encryptedReferralHistoryID);
-        $patientMessages = Messages::where('referralHistoryID', $referralHistoryID)
+        $encryptedReferralID = $request->input('referralID');
+        $referralID = Crypt::decrypt($encryptedReferralID);
+        $patientMessages = Messages::where('referralID', $referralID)
         ->join('users as u', 'messages.user_id', '=', 'u.id')
-            ->select('messages.user_id', 'messages.message', 'messages.referralHistoryID', 'u.username',
+            ->select('messages.user_id', 'messages.message', 'messages.referralID', 'u.username',
                 Messages::raw("DATE_FORMAT(sent_at, '%M %e, %Y') as sent_date"), 
                 Messages::raw("DATE_FORMAT(sent_at, '%l:%i %p') as sent_time"))
             ->get();
@@ -163,6 +164,8 @@ class patientController extends Controller{
     
         $query = referralHistory::query()
             ->where('patientreferralhistory.receivingHospital', '=', $hciID)
+            ->whereBetween('patientreferralhistory.created_at', [now()->subDays(1), now()])
+            ->where('pr.status','1')
             ->join('patientreferrals as pr', 'patientreferralhistory.referralID', '=', 'pr.referralID')
             ->join('activefacilities as referringHospitalInst', 'pr.referringHospital', '=', 'referringHospitalInst.HealthFacilityCodeShort')
             ->join('activefacilities as receivingHospitalInst', 'patientreferralhistory.receivingHospital', '=', 'receivingHospitalInst.HealthFacilityCodeShort')
@@ -213,11 +216,11 @@ class patientController extends Controller{
         
         $patientReferrals = Referrals::join('patients', 'patientreferrals.patientID', '=', 'patients.patientID')
         ->join('activefacilities as referringHospitalInst', 'patientreferrals.referringHospital', '=', 'referringHospitalInst.HealthFacilityCodeShort')
-
         ->addSelect('referringHospitalInst.FacilityName as referringHospitalDescription', 'patients.birthDate', 'patients.gender', 'patients.firstName', 'patients.middleName', 'patients.lastName', 'patientreferrals.*')
         ->selectRaw("DATE_FORMAT(patientreferrals.created_at, '%b %d, %Y %h:%i %p') as formatted_created_at")
         ->selectRaw("CONCAT_WS(' ', patients.firstName, patients.middleName, patients.lastName, patients.suffix) as fullName")
         ->where('patientreferrals.referringHospital', $hciID)
+        ->where('patientreferrals.status','1')
         ->when($referralID, function ($query) use ($referralID) {
             return $query->where('patientreferrals.referralID', $referralID);
         })
@@ -251,13 +254,92 @@ class patientController extends Controller{
         
     }
     
+    public function fetchMasterfile(Request $request){
+
+        $hciID = $request->input('hciID');
+        
+        if (is_null($hciID) || $hciID === '') {
+            return response()->json(['referrals' => []], 200);
+        }
+    
+        $lastName = $request->input('lastName');
+        $firstName = $request->input('firstName');
+        $middleName = $request->input('middleName');
+        $referralID = $request->input('referralID');
+        
+        $patientReferrals = Referrals::join('patients', 'patientreferrals.patientID', '=', 'patients.patientID')
+        ->join('activefacilities as referringHospitalInst', 'patientreferrals.referringHospital', '=', 'referringHospitalInst.HealthFacilityCodeShort')
+        ->addSelect('referringHospitalInst.FacilityName as referringHospitalDescription', 'patients.birthDate', 'patients.gender', 'patients.firstName', 'patients.middleName', 'patients.lastName', 'patientreferrals.*')
+        ->selectRaw("DATE_FORMAT(patientreferrals.created_at, '%b %d, %Y %h:%i %p') as formatted_created_at")
+        ->selectRaw("CONCAT_WS(' ', patients.firstName, patients.middleName, patients.lastName, patients.suffix) as fullName")
+        ->where('patientreferrals.status','1')
+        ->when($referralID, function ($query) use ($referralID) {
+            return $query->where('patientreferrals.referralID', $referralID);
+        })
+        ->when(!$referralID, function ($query) use ($lastName, $firstName, $middleName) {
+            $query->when($lastName, function ($query) use ($lastName) {
+                $query->where('patients.lastName', 'like', '%' . $lastName . '%');
+            })->when($firstName, function ($query) use ($firstName) {
+                $query->where('patients.firstName', 'like', '%' . $firstName . '%');
+            })->when($middleName, function ($query) use ($middleName) {
+                $query->where('patients.middleName', 'like', '%' . $middleName . '%');
+            });
+        })
+        ->orderBy('patientreferrals.created_at', 'desc')
+        ->get();
+            foreach ($patientReferrals as $referral) {
+                $referralHistories = referralHistory::where('referralID', $referral->referralID)
+                    ->join('activefacilities as receivingHospitalInst', 'patientreferralhistory.receivingHospital', '=', 'receivingHospitalInst.HealthFacilityCodeShort')
+                    ->addSelect('receivingHospitalInst.FacilityName as receivingHospitalDescription', 'receivingHospitalInst.FacilityName as receivingHospitalDescription','patientreferralhistory.*')
+                    ->selectRaw("DATE_FORMAT(created_at, '%b %d, %Y %h:%i %p') as formatted_created_at")
+                    ->orderBy('created_at', 'desc')
+                    ->get();
+                
+                foreach ($referralHistories as $history) {
+                    $history->encryptedReferralID = Crypt::encrypt($history->referralID);
+                    $history->encryptedReferralHistoryID = Crypt::encrypt($history->referralHistoryID);
+                }
+                
+                $referral->referralHistory = $referralHistories;
+            }
+                return response()->json(['referrals' => $patientReferrals], 200);
+        
+    }
+
+    public function setToOngoing(Request $request){
+
+        $updateHistory = referralHistory::where("referralHistoryID", $request-> referralHistoryID)
+        ->update(['referralStatus'=> 2]);
+
+        $user = Auth::user();
+        $user_id = $user->id;
+        $sent_to = $request->referringHospital;
+        $notification = sprintf("Your referral for %s %s %s is now undergoing assessment.", $request->firstName, $request->middleName, $request->lastName);
+        $dateTime = Carbon::now();
+        $date = $dateTime->format('F j, Y'); 
+        $time = $dateTime->format('g:i A');
+        
+        $notif = new Notifications();
+        $notif->notification = $notification;
+        $notif->notificationType = 6;
+        $notif->referralID = $request->referralID;
+        $notif->user_id = $user->id; 
+        $notif->sent_to = $sent_to;
+        $notif->sent_at = $dateTime;
+        $notif->save();
+
+        event(new NewNotification($notification, $user_id, 6, $request->referralHistoryID, $sent_to, $date, $time));
+
+        return response()->json(["message" => "Success"], 200);
+    }
+    
     public function acceptPatient(Request $request){
         $updateMain = referrals::where("referralID", $request->referralID)
         ->update(['receivingDepartment' => $request->receivingDepartment,
         'assignedDoctor' => $request->assignedDoctor]);    
 
         $updateHistory = referralHistory::where("referralHistoryID", $request-> referralHistoryID)
-        ->update(['referralStatus'=> 3]);
+        ->update(['referralStatus'=> 3, 'accepted'=> 1]);
 
         $user = Auth::user();
         $user_id = $user->id;
@@ -307,11 +389,62 @@ class patientController extends Controller{
     public function deferPatient(Request $request){  
         $updateHistory = referralHistory::where("referralHistoryID", $request-> referralHistoryID)
         ->update(['referralStatus'=> $request->deferReason]);
+
+        $user = Auth::user();
+        $user_id = $user->id;
+        $sent_to = $request->referringHospital;
+
+        if($request->deferReason == '4'){
+        $notification = sprintf("Your Patient %s %s %s has been deferred (Given Management)", $request->firstName, $request->middleName, $request->lastName);
+        }else if($request->deferReason == '5'){
+        $notification = sprintf("Your Patient %s %s %s has been deferred (Patient Refused Transfer)", $request->firstName, $request->middleName, $request->lastName);
+        }
+        $dateTime = Carbon::now();
+        $date = $dateTime->format('F j, Y'); 
+        $time = $dateTime->format('g:i A');
+        
+        $notif = new Notifications();
+        $notif->notification = $notification;
+        $notif->notificationType = 5;
+        $notif->referralID = $request->referralID;
+        $notif->user_id = $user->id; 
+        $notif->sent_to = $sent_to;
+        $notif->sent_at = $dateTime;
+        $notif->save();
+
+        event(new NewNotification($notification, $user_id, 5, $request->referralHistoryID, $sent_to, $date, $time));
+
+        return response()->json(["message" => "Success"], 200);
+    }
+
+    public function cancelReferral(Request $request){  
+        $updateHistory = referrals::where("referralID", $request-> referralID)
+        ->update(['status'=> 0]);
+
+        $user = Auth::user();
+        $user_id = $user->id;
+        $sent_to = $request->receivingHospital;
+        $notification = sprintf("Referral for %s %s %s has been cancelled", $request->firstName, $request->middleName, $request->lastName);
+        $dateTime = Carbon::now();
+        $date = $dateTime->format('F j, Y'); 
+        $time = $dateTime->format('g:i A');
+        
+        $notif = new Notifications();
+        $notif->notification = $notification;
+        $notif->notificationType = 7;
+        $notif->referralID = $request->referralID;
+        $notif->user_id = $user->id; 
+        $notif->sent_to = $sent_to;
+        $notif->sent_at = $dateTime;
+        $notif->save();
+
+        event(new NewNotification($notification, $user_id, 7, $request->referralID, $sent_to, $date, $time));
+
         return response()->json(["message" => "Success"], 200);
     }
    
     public function reopenReferral(Request $request){
-        $updated = referralHistory::where("referralID", $request->referralID)
+        $updated = referralHistory::where("referralHistoryID", $request->referralHistoryID)
         ->update(['referralStatus' => '1']);    
 
         return response()->json(["message" => "Success"], 200);
@@ -359,6 +492,7 @@ class patientController extends Controller{
             'municipalityID' => $request->municipalityID,
             'barangayID' => $request->barangayID,
             'civilStatus' => $request->civilStatus,
+            'nationality' => $request->nationality,
             'patientContact' => $patientContact,
             'informantName' => $request->informantName,
             'informantRelationship' => $request->informantRelationship,
@@ -406,7 +540,7 @@ class patientController extends Controller{
         $user = Auth::user();
         $user_id = $user->id;
         $sent_to = $request->receivingHospital;
-        $notification = sprintf("You have an new referral: %s %s %s", $request->firstName, $request->middleName, $request->lastName);
+        $notification = sprintf("You have a new referral: %s %s %s", $request->firstName, $request->middleName, $request->lastName);
         $dateTime = Carbon::now();
         $date = $dateTime->format('F j, Y'); 
         $time = $dateTime->format('g:i A');
@@ -420,7 +554,7 @@ class patientController extends Controller{
         $notif->sent_at = $dateTime;
         $notif->save();
 
-        event(new NewNotification($notification, $user_id, 3, $referralHistoryID, $sent_to, $date, $time));
+        event(new NewNotification($notification, $user_id, 4, $referralHistoryID, $sent_to, $date, $time));
         return response()->json(["message" => "Referral Created", "referralID" => $referralID], 200);
     }
     
@@ -497,7 +631,47 @@ class patientController extends Controller{
         $notif->save();
 
         event(new NewNotification($notification, $user_id, 2, $request->referralHistoryID, $sent_to, $date, $time));
+        
+        return response()->json(["message" => "Referral Created", "referralID" => $referralID], 200);
 
+
+    }
+
+    public function returnToJBLMGH(Request $request){
+
+        $referralID = $request->referralID;
+        $referralHistoryID = $request->referralHistoryID;
+
+        $update = referralHistory::where("referralHistoryID", $referralHistoryID)
+        ->update(['referralStatus' => 6]);    
+
+        $referralHistory = referralHistory::create([
+            'referralID' => $referralID,
+            'receivingHospital' => 271,
+            'referralStatus' => 1,
+        ]);
+    
+        $referralID = $referralHistory->id;
+        
+        $user = Auth::user();
+        $user_id = $user->id;
+        $sent_to = $request->referringHospital;
+        $notification = sprintf("Your Patient %s %s %s has been referred to OPCEN", $request->firstName, $request->middleName, $request->lastName);
+        $dateTime = Carbon::now();
+        $date = $dateTime->format('F j, Y'); 
+        $time = $dateTime->format('g:i A');
+        
+        $notif = new Notifications();
+        $notif->notification = $notification;
+        $notif->notificationType = 2;
+        $notif->referralID = $request->referralID;
+        $notif->user_id = $user->id; 
+        $notif->sent_to = $sent_to;
+        $notif->sent_at = $dateTime;
+        $notif->save();
+
+        event(new NewNotification($notification, $user_id, 2, $request->referralHistoryID, $sent_to, $date, $time));
+        
         return response()->json(["message" => "Referral Created", "referralID" => $referralID], 200);
 
 
@@ -541,22 +715,22 @@ class patientController extends Controller{
         return response()->json(["message" => "Referral Created", "referralID" => $referralID], 200);
     }
 
-    public function setToExpired(Request $request){
-
-        $referralID = $request->referralID;
-        $referralHistoryID = $request->referralHistoryID;
-    
-        $update = referralHistory::where("referralID", $referralHistoryID)
-        ->whereDate('created_at', '<=', Carbon::now()->subDays(1))
-        ->whereNotNull('arrived')
-        ->where('arrived', '<>', '')
-        ->update(['referralStatus' => '9']); 
+    public function setToExpired(){
+        $update = referralHistory::whereDate('created_at', '<=', now()->subDays(1))
+        ->whereNull('arrived')
+        ->whereIn('referralStatus', [1, 2, 3])
+        ->update(['referralStatus' => '8']);
     }
    
     public function fetchCivilStatus(){
         $data = civilStatus::get();
         return $data;
     }
+
+    public function fetchNationality(){
+        $data = Nationality::where('Status', 1)->get();
+        return $data;
+    }    
     
     public function fetchDoctors(){
         $query = doctors::query();

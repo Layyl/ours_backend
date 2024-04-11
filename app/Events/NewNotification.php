@@ -16,7 +16,7 @@ class NewNotification implements ShouldBroadcast
     public $notification;
     public $user_id;
     public $notificationType;
-    public $referralHistoryID;
+    public $referralID;
     public $sent_to;
     public $sent_date;
     public $sent_time;
@@ -24,12 +24,12 @@ class NewNotification implements ShouldBroadcast
     /**
      * Create a new event instance.
      */
-    public function __construct($notification, $user_id, $notificationType, $referralHistoryID, $sent_to, $sent_date, $sent_time)
+    public function __construct($notification, $user_id, $notificationType, $referralID, $sent_to, $sent_date, $sent_time)
     {
         $this->notification = $notification;
         $this->user_id = $user_id;
         $this->notificationType = $notificationType;
-        $this->referralHistoryID = $referralHistoryID;
+        $this->referralID = $referralID;
         $this->sent_to = $sent_to;
         $this->sent_date = $sent_date;
         $this->sent_time = $sent_time;

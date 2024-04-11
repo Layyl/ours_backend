@@ -118,7 +118,7 @@
          </tr>
          <tr>
             <td width = "5rem">Address: </td>
-            <td style = "border-bottom: 0.5px solid #000;">{{$data->street}}, {{$data->barangay}}, {{$data->municipality}}, {{$data->province}}</td>
+            <td style = "border-bottom: 0.5px solid #000;">{{$data->street}}, {{$data->barangayDesc}}, {{$data->municipalityDesc}}, {{$data->provinceDesc}}</td>
             <td width = "5rem">Contact No: </td>
             <td style = "border-bottom: 0.5px solid #000;">{{$data->patientContact}}</td>
          </tr>

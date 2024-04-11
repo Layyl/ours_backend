@@ -16,19 +16,19 @@ class NewChatMessage implements ShouldBroadcast
     public $message;
     public $user_id;
     public $username;
-    public $referralHistoryID;
+    public $referralID;
     public $sent_date;
     public $sent_time;
     
     /**
      * Create a new event instance.
      */
-    public function __construct($message, $user_id, $username, $referralHistoryID, $sent_date, $sent_time)
+    public function __construct($message, $user_id, $username, $referralID, $sent_date, $sent_time)
     {
         $this->message = $message;
         $this->user_id = $user_id;
         $this->username = $username;
-        $this->referralHistoryID = $referralHistoryID;
+        $this->referralID = $referralID;
         $this->sent_date = $sent_date;
         $this->sent_time = $sent_time;
     }
