@@ -31,9 +31,11 @@ Route::middleware('auth:sanctum')->group(function(){
         Route::get('fetchDashboardCensus','fetchDashboardCensus');
         Route::get('fetchReferrals','fetchReferrals');
         Route::get('fetchReferralData','fetchReferralData');
+        Route::get('fetchReferralDataMasterfile','fetchReferralDataMasterfile');
         Route::get('fetchReferralMessages','fetchReferralMessages');
         Route::get('fetchInboundPatients','fetchInboundPatients');
         Route::get('fetchOutboundPatients','fetchOutboundPatients');
+        Route::get('fetchMasterfile','fetchMasterfile');
         Route::get('fetchCivilStatus','fetchCivilStatus');
         Route::get('fetchNationality','fetchNationality');
         Route::get('fetchReferralReasons','fetchReferralReasons');

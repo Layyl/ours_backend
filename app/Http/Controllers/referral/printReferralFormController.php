@@ -51,8 +51,11 @@ class printReferralFormController extends Controller
         if(!$data) {
             return response()->json(['message' => 'No result found', 'status' => 404]);
         }
-        $patientFilesArray = explode(', ', $data->patientFiles);
-        $data->patientFiles = $patientFilesArray;
+        if (!empty($data->patientFiles)) {
+            $patientFilesArray = explode(', ', $data->patientFiles);
+            $data->patientFiles = $patientFilesArray;
+        }
+        
         $gender = $data->gender;
         $provinceID = $data->provinceID;
         $municipalityID = $data->municipalityID;

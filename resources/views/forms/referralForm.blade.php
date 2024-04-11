@@ -244,13 +244,15 @@
             <td height = "2rem" style = "font-size: 1rem; font-style: italic; text-align:center;"><b>ISO CERTIFIED HOSPITAL- QUALITY MANAGEMENT SYSTEM</b><br><p style = "font-size: 0.6rem;"><i>This document is a property of <b>JOSE B. LINGAD MEMORIAL GENERAL HOSPITAL</b> and the content are treated confidential therefore, unauthorized reproduction is strictly prohibited unless otherwise permitted by JBLMGH Top Management.</i></p></td>
          </tr>
       </table>
+      @if(!empty($data->patientFiles))
+    @foreach($data->patientFiles as $filename)
+        <div class="page-break"></div>
+        @php
+            $imagePath = "C:\\Users\\IHOMS-TRISTAN\\Desktop\\jblmgh-ours-main\\src\\uploads\\{$data->referralID}\\{$filename}";
+        @endphp
+        <img src="data:image/png;base64,{{ base64_encode(file_get_contents($imagePath)) }}" width="100%" height="100%" style="float:left;">
+    @endforeach
+@endif
 
-      @foreach($data->patientFiles as $filename)
-      <div class="page-break"></div>
-    @php
-        $imagePath = "C:\\Users\\IHOMS-TRISTAN\\Desktop\\jblmgh-ours-main\\src\\uploads\\{$data->referralID}\\{$filename}";
-    @endphp
-    <img src="data:image/png;base64,{{ base64_encode(file_get_contents($imagePath)) }}" width="100%" height="100%" style="float:left;">
-@endforeach
-   </body>
+      </body>
 </html>

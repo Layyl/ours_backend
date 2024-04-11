@@ -97,43 +97,87 @@ class patientController extends Controller{
         $referralHistoryID = Crypt::decrypt($encryptedreferralHistoryID);
         $hciID = $request->input('hciID');
     
-        $query = referralHistory::query()
-          ->select(
-            'patientreferralhistory.*',
-            'referringHospitalInst.FacilityName as referringHospitalDescription',
-            'receivingHospitalInst.FacilityName as receivingHospitalDescription',
-            'p.birthDate',
-            'p.gender',
-            'p.firstName',
-            'p.middleName',
-            'p.lastName',
-            'pr.*',
-            referralHistory::raw("DATE_FORMAT(pr.created_at, '%b %d, %Y %h:%i %p') as formatted_created_at")
-        )
-        ->join('patientreferrals as pr', 'patientreferralhistory.referralID', '=', 'pr.referralID')
-        ->join('activefacilities as referringHospitalInst', 'pr.referringHospital', '=', 'referringHospitalInst.HealthFacilityCodeShort')
-        ->join('activefacilities as receivingHospitalInst', 'patientreferralhistory.receivingHospital', '=', 'receivingHospitalInst.HealthFacilityCodeShort')
-        ->leftJoin('patients as p', 'pr.patientID', '=', 'p.patientID')
-        ->where('patientreferralhistory.referralhistoryID', '=', $referralHistoryID)
-        ->orderBy('pr.created_at', 'DESC')
-        ->get();
+        $query = Referrals::query()
+            ->select(
+                'patientreferrals.*',
+                'referringHospitalInst.FacilityName as referringHospitalDescription',
+                'receivingHospitalInst.FacilityName as receivingHospitalDescription',
+                'p.birthDate',
+                'p.gender',
+                'p.firstName',
+                'p.middleName',
+                'p.lastName',
+                'prh.*',
+                Referrals::raw("DATE_FORMAT(patientreferrals.created_at, '%b %d, %Y %h:%i %p') as formatted_created_at")
+            )
+            ->join('patientreferralhistory as prh', 'patientreferrals.referralID', '=', 'prh.referralID')
+            ->join('activefacilities as referringHospitalInst', 'patientreferrals.referringHospital', '=', 'referringHospitalInst.HealthFacilityCodeShort')
+            ->join('activefacilities as receivingHospitalInst', 'prh.receivingHospital', '=', 'receivingHospitalInst.HealthFacilityCodeShort')
+            ->leftJoin('patients as p', 'patientreferrals.patientID', '=', 'p.patientID')
+            ->where('prh.referralhistoryID', '=', $referralHistoryID)
+            ->orderBy('patientreferrals.created_at', 'desc')
+            ->get();
+    
         foreach ($query as $referral) {
             $referralHistories = referralHistory::where('referralID', $referral->referralID)
                 ->join('activefacilities as receivingHospitalInst', 'patientreferralhistory.receivingHospital', '=', 'receivingHospitalInst.HealthFacilityCodeShort')
-                ->addSelect('receivingHospitalInst.FacilityName as receivingHospitalDescription', 'receivingHospitalInst.FacilityName as receivingHospitalDescription','patientreferralhistory.*')
+                ->addSelect('receivingHospitalInst.FacilityName as receivingHospitalDescription', 'receivingHospitalInst.FacilityName as receivingHospitalDescription', 'patientreferralhistory.*')
                 ->selectRaw("DATE_FORMAT(created_at, '%b %d, %Y %h:%i %p') as formatted_created_at")
                 ->orderBy('created_at', 'desc')
                 ->get();
-            
+    
             foreach ($referralHistories as $history) {
-                $history->encryptedReferralID = Crypt::encrypt($history->referralID);
                 $history->encryptedReferralHistoryID = Crypt::encrypt($history->referralHistoryID);
             }
-            
+    
+            $referral->EncryptedReferralID = Crypt::encrypt($referral->referralID);
             $referral->referralHistory = $referralHistories;
         }
         return response()->json(['referrals' => $query], 200);
+    }
     
+    public function fetchReferralDataMasterfile(Request $request){
+        $encryptedreferralID = $request->input('referralID');
+        $referralID = Crypt::decrypt($encryptedreferralID);
+        $hciID = $request->input('hciID');
+    
+        $query = Referrals::query()
+            ->select(
+                'patientreferrals.*',
+                'referringHospitalInst.FacilityName as referringHospitalDescription',
+                'receivingHospitalInst.FacilityName as receivingHospitalDescription',
+                'p.birthDate',
+                'p.gender',
+                'p.firstName',
+                'p.middleName',
+                'p.lastName',
+                'prh.*',
+                Referrals::raw("DATE_FORMAT(patientreferrals.created_at, '%b %d, %Y %h:%i %p') as formatted_created_at")
+            )
+            ->join('patientreferralhistory as prh', 'patientreferrals.referralID', '=', 'prh.referralID')
+            ->join('activefacilities as referringHospitalInst', 'patientreferrals.referringHospital', '=', 'referringHospitalInst.HealthFacilityCodeShort')
+            ->join('activefacilities as receivingHospitalInst', 'prh.receivingHospital', '=', 'receivingHospitalInst.HealthFacilityCodeShort')
+            ->leftJoin('patients as p', 'patientreferrals.patientID', '=', 'p.patientID')
+            ->where('patientreferrals.referralID', '=', $referralID)
+            ->orderBy('patientreferrals.created_at', 'desc')
+            ->get();
+    
+        foreach ($query as $referral) {
+            $referralHistories = referralHistory::where('referralID', $referral->referralID)
+                ->join('activefacilities as receivingHospitalInst', 'patientreferralhistory.receivingHospital', '=', 'receivingHospitalInst.HealthFacilityCodeShort')
+                ->addSelect('receivingHospitalInst.FacilityName as receivingHospitalDescription', 'receivingHospitalInst.FacilityName as receivingHospitalDescription', 'patientreferralhistory.*')
+                ->selectRaw("DATE_FORMAT(created_at, '%b %d, %Y %h:%i %p') as formatted_created_at")
+                ->orderBy('created_at', 'desc')
+                ->get();
+    
+            foreach ($referralHistories as $history) {
+                $history->encryptedReferralHistoryID = Crypt::encrypt($history->referralHistoryID);
+            }
+    
+            $referral->EncryptedReferralID = Crypt::encrypt($referral->referralID);
+            $referral->referralHistory = $referralHistories;
+        }
+        return response()->json(['referrals' => $query], 200);
     }
 
     public function fetchReferralMessages(Request $request){
@@ -199,8 +243,8 @@ class patientController extends Controller{
             }
             return response()->json(['referrals' => $referrals], 200);
     
-    }
-    
+    } 
+
     public function fetchOutboundPatients(Request $request){
 
         $hciID = $request->input('hciID');
@@ -253,7 +297,7 @@ class patientController extends Controller{
                 return response()->json(['referrals' => $patientReferrals], 200);
         
     }
-    
+
     public function fetchMasterfile(Request $request){
 
         $hciID = $request->input('hciID');
@@ -296,10 +340,10 @@ class patientController extends Controller{
                     ->get();
                 
                 foreach ($referralHistories as $history) {
-                    $history->encryptedReferralID = Crypt::encrypt($history->referralID);
                     $history->encryptedReferralHistoryID = Crypt::encrypt($history->referralHistoryID);
                 }
                 
+                $referral->EncryptedReferralID = Crypt::encrypt($referral->referralID);
                 $referral->referralHistory = $referralHistories;
             }
                 return response()->json(['referrals' => $patientReferrals], 200);
