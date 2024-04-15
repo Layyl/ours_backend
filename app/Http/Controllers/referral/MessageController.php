@@ -13,6 +13,7 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Crypt;
 
 class MessageController extends Controller
 {
@@ -41,6 +42,7 @@ class MessageController extends Controller
             'message' => $request->message,
             'user_id' => $user->id,
             'referralID' => $request->referralID,
+            'referralHistoryID' => $request->referralHistoryID,
             'date' => $date,
             'time' => $time
         ]);
@@ -59,17 +61,21 @@ class MessageController extends Controller
         $dateTime = Carbon::now();
         $date = $dateTime->format('F j, Y'); 
         $time = $dateTime->format('g:i A');
-        
+
+        $encryptedReferralID = Crypt::encrypt($request->referralID);
+        $encryptedReferralHistoryID = Crypt::encrypt($request->referralHistoryID);
+
         $notif = new Notifications();
         $notif->notification = $notification;
         $notif->notificationType = 7;
-        $notif->referralID = $request->referralID;
+        $notif->referralID = $encryptedReferralID;
+        $notif->referralHistoryID =  $encryptedReferralHistoryID;
         $notif->user_id = $user->id; 
         $notif->sent_to = $sent_to;
         $notif->sent_at = $dateTime;
         $notif->save();
 
-        event(new NewNotification($notification, $user_id, 7, $request->referralID, $sent_to, $date, $time));
+        event(new NewNotification($notification, $user_id, 7, $encryptedReferralID,  $encryptedReferralHistoryID, $sent_to, $date, $time));
 
         return response()->json([], 200);
     }

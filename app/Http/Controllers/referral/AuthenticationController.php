@@ -87,9 +87,6 @@ class AuthenticationController extends Controller
 
     public function fetchUsers(Request $request){
 
-        $lastName = $request->input('lastName');
-        $firstName = $request->input('firstName');
-        $middleName = $request->input('middleName');
         $hciID = $request->input('hospital');
     
         $query = User::join('activefacilities', 'users.hciID', '=', 'activefacilities.HealthFacilityCodeShort')
@@ -103,8 +100,7 @@ class AuthenticationController extends Controller
         return $data;
     }
 
-    public function fetchNotifications(Request $request)
-    {
+    public function fetchNotifications(Request $request){
         $user_id = $request->input('user_id');
         $notifications = Notifications::where('sent_to', $user_id)
         ->orderBy('sent_at', 'desc')

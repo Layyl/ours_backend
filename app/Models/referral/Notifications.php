@@ -10,7 +10,7 @@ class Notifications extends Model
 {
     public $timestamps = false;
     
-    protected $fillable = ['notification', 'notificationType', 'referralHistoryID', 'sent_at'];
+    protected $fillable = ['notification', 'notificationType', 'referralID', 'referralHistoryID', 'sent_at'];
 
     protected $table = 'notifications';
     protected $connection = 'mysql';

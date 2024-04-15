@@ -219,9 +219,9 @@
             <td width = "1rem">V</td>
             <td  style = "padding-bottom: -.1rem; border-bottom: 0.2px solid #000; text-align: center;"><b>{{$data->v}}</b></td>
             <td width = "1rem">M</td>
-            <td  style = "padding-bottom: -.1rem; border-bottom: 0.2px solid #000; text-align: center;"><b>{{$data->m}}</b></td>
+            <td  style = "padding-bottom: -.1rem; border-bottom: 0.2px solid #000; text-align: center;"></b>{{$data->m}}</b></td>
             <td width = "1rem">GCS</td>
-            <td  style = "padding-bottom: -.1rem; border-bottom: 0.2px solid #000; text-align: center;"><b>{{$data->gcs}}</b></td>
+            10d>
          </tr>
       </table>
       <table>
