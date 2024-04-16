@@ -54,6 +54,7 @@ Route::middleware('auth:sanctum')->group(function(){
         Route::post('acceptPatient','acceptPatient');
         Route::post('deferPatient','deferPatient');
         Route::post('cancelReferral','cancelReferral');
+        Route::post('expiredPatient','expiredPatient');
         Route::post('setToExpired','setToExpired');
         Route::post('reopenReferral','reopenReferral');
         Route::post('transferToOtherHCI','transferToOtherHCI');
@@ -72,6 +73,7 @@ Route::middleware('auth:sanctum')->group(function(){
         Route::post('logout','logout');
         Route::post('createAccount','createAccount');
         Route::post('updatePassword','updatePassword');
+        Route::post('removeUser','removeUser');
     
     });
 

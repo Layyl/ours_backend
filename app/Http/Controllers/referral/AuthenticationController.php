@@ -38,8 +38,18 @@ class AuthenticationController extends Controller
         try {
             $credentials = $request->only('username', 'password');
     
-            if (Auth::attempt($credentials)) {
-                $user = Auth::user();
+            // Check if the user exists and the status is 1
+            $user = User::where('username', $credentials['username'])
+                        ->where('status', 1)
+                        ->first();
+    
+            if (!$user || !Hash::check($credentials['password'], $user->password)) {
+                return response()->json([
+                    'message' => 'Invalid username or password.',
+                ], 401); // Unauthorized
+            }
+    
+            if (Auth::loginUsingId($user->id)) {
                 $token = $user->createToken("API TOKEN")->plainTextToken;
     
                 return response()->json([
@@ -48,11 +58,11 @@ class AuthenticationController extends Controller
                     'user' => $user,
                     'status' => 200,
                 ], 200); // OK
-            } else {
-                return response()->json([
-                    'message' => 'Invalid username or password.',
-                ], 401); // Unauthorized
             }
+    
+            return response()->json([
+                'message' => 'Unable to authenticate user.',
+            ], 401); // Unauthorized
         } catch (\Exception $e){
             Log::error("Error: " . $e->getMessage());
             return response()->json([
@@ -61,6 +71,7 @@ class AuthenticationController extends Controller
             ], 500); // Internal Server Error
         }
     }
+    
     
     public function logout(){
        try{
@@ -110,15 +121,21 @@ class AuthenticationController extends Controller
             return $notification; 
         });
 
-    return response()->json(["notifications" => $notifications, "message" => "Success"], 200);
+        return response()->json(["notifications" => $notifications, "message" => "Success"], 200);
     }
-
 
     public function updatePassword(Request $request){
     
         $updated = User::where("id", $request->userID)
         ->update(['password' => bcrypt($request->password),
         'tempPassChanged' => 1]);    
+
+        return response()->json(["message" => "Success"], 200);
+    }
+
+    public function removeUser(Request $request){  
+        $removeHCI = User::where("id", $request-> userID)
+        ->update(['status'=> 0]);
 
         return response()->json(["message" => "Success"], 200);
     }

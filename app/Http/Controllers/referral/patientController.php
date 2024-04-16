@@ -122,7 +122,7 @@ class patientController extends Controller{
             $referralHistories = referralHistory::where('referralID', $referral->referralID)
                 ->join('activefacilities as receivingHospitalInst', 'patientreferralhistory.receivingHospital', '=', 'receivingHospitalInst.HealthFacilityCodeShort')
                 ->addSelect('receivingHospitalInst.FacilityName as receivingHospitalDescription', 'receivingHospitalInst.FacilityName as receivingHospitalDescription', 'patientreferralhistory.*')
-                ->selectRaw("DATE_FORMAT(created_at, '%b %d, %Y %h:%i %p') as formatted_created_at")
+                ->selectRaw("DATE_FORMAT(patientreferralhistory.created_at, '%b %d, %Y %h:%i %p') as formatted_created_at")
                 ->orderBy('created_at', 'desc')
                 ->get();
     
@@ -280,12 +280,15 @@ class patientController extends Controller{
         ->orderBy('patientreferrals.created_at', 'desc')
         ->get();
             foreach ($patientReferrals as $referral) {
-                $referralHistories = referralHistory::where('referralID', $referral->referralID)
-                    ->join('activefacilities as receivingHospitalInst', 'patientreferralhistory.receivingHospital', '=', 'receivingHospitalInst.HealthFacilityCodeShort')
-                    ->addSelect('receivingHospitalInst.FacilityName as receivingHospitalDescription', 'receivingHospitalInst.FacilityName as receivingHospitalDescription','patientreferralhistory.*')
-                    ->selectRaw("DATE_FORMAT(created_at, '%b %d, %Y %h:%i %p') as formatted_created_at")
-                    ->orderBy('created_at', 'desc')
-                    ->get();
+                $referralHistories = referralHistory::where('patientreferralhistory.referralID', $referral->referralID)
+                ->join('patientreferrals', 'patientreferralhistory.referralID', '=', 'patientreferrals.referralID')
+                ->join('patients', 'patients.patientID', '=', 'patientreferrals.patientID')
+                ->join('activefacilities as receivingHospitalInst', 'patientreferralhistory.receivingHospital', '=', 'receivingHospitalInst.HealthFacilityCodeShort')
+                ->addSelect('receivingHospitalInst.FacilityName as receivingHospitalDescription', 'receivingHospitalInst.FacilityName as receivingHospitalDescription','patientreferralhistory.*', 'patients.*')
+                ->selectRaw("DATE_FORMAT(patientreferralhistory.created_at, '%b %d, %Y %h:%i %p') as formatted_created_at")
+                ->orderBy('patientreferralhistory.created_at', 'desc')
+                ->get();
+            
                 
                 foreach ($referralHistories as $history) {
                     $history->encryptedReferralID = Crypt::encrypt($history->referralID);
@@ -376,7 +379,7 @@ class patientController extends Controller{
         $notif->sent_at = $dateTime;
         $notif->save();
 
-        event(new NewNotification($notification, $user_id, 6, $encryptedReferralID, $encryptedReferralHistoryID, $sent_to, $date, $time));
+        event(new NewNotification($notification, $user_id, 6, $encryptedReferralID, $request->referralID , $encryptedReferralHistoryID, $sent_to, $date, $time));
 
         return response()->json(["message" => "Success"], 200);
     }
@@ -407,7 +410,7 @@ class patientController extends Controller{
         $notif->sent_at = $dateTime;
         $notif->save();
 
-        event(new NewNotification($notification, $user_id, 1, Crypt::encrypt($request->referralID), Crypt::encrypt($request->referralHistoryID), $sent_to, $date, $time));
+        event(new NewNotification($notification, $user_id, 1, Crypt::encrypt($request->referralID), $request->referralID, Crypt::encrypt($request->referralHistoryID), $sent_to, $date, $time));
 
         return response()->json(["message" => "Success"], 200);
     }
@@ -450,7 +453,7 @@ class patientController extends Controller{
         $notif->sent_at = $dateTime;
         $notif->save();
 
-        event(new NewNotification($notification, $user_id, 10, Crypt::encrypt($request->referralID), Crypt::encrypt($request->referralHistoryID), $sent_to, $date, $time));
+        event(new NewNotification($notification, $user_id, 10, Crypt::encrypt($request->referralID), $request->referralID, Crypt::encrypt($request->referralHistoryID), $sent_to, $date, $time));
 
         return response()->json(["message" => "Success"], 200);
     }
@@ -481,7 +484,7 @@ class patientController extends Controller{
         $notif->sent_to = $sent_to;
         $notif->sent_at = $dateTime;
         $notif->save();
-        event(new NewNotification($notification, $user_id, 5, Crypt::encrypt($request->referralID), Crypt::encrypt($request->referralHistoryID), $sent_to, $date, $time));
+        event(new NewNotification($notification, $user_id, 5, Crypt::encrypt($request->referralID), $request->referralID, Crypt::encrypt($request->referralHistoryID), $sent_to, $date, $time));
 
         return response()->json(["message" => "Success"], 200);
     }
@@ -508,7 +511,38 @@ class patientController extends Controller{
         $notif->sent_at = $dateTime;
         $notif->save();
 
-        event(new NewNotification($notification, $user_id, 8, Crypt::encrypt($request->referralID), Crypt::encrypt($request->referralHistoryID), $sent_to, $date, $time));
+        event(new NewNotification($notification, $user_id, 8, Crypt::encrypt($request->referralID), $request->referralID, Crypt::encrypt($request->referralHistoryID), $sent_to, $date, $time));
+
+        return response()->json(["message" => "Success"], 200);
+    }
+
+    public function expiredPatient(Request $request){  
+
+        $encryptedReferralHistoryID = $request->input('encryptedReferralHistoryID');
+        $referralHistoryID = Crypt::decrypt($encryptedReferralHistoryID);
+
+        $updateHistory = referralHistory::where("referralHistoryID", $referralHistoryID)
+        ->update(['referralStatus'=> 9]);
+
+        $user = Auth::user();
+        $user_id = $user->id;
+        $sent_to = $request->receivingHospital;
+        $notification = sprintf("Patient %s %s %s has expired", $request->firstName, $request->middleName, $request->lastName);
+        $dateTime = Carbon::now();
+        $date = $dateTime->format('F j, Y'); 
+        $time = $dateTime->format('g:i A');
+        
+        $notif = new Notifications();
+        $notif->notification = $notification;
+        $notif->notificationType = 11;
+        $notif->referralID = Crypt::encrypt($request->referralID);
+        $notif->referralHistoryID = Crypt::encrypt($request->referralHistoryID);
+        $notif->user_id = $user->id; 
+        $notif->sent_to = $sent_to;
+        $notif->sent_at = $dateTime;
+        $notif->save();
+
+        event(new NewNotification($notification, $user_id, 11, Crypt::encrypt($request->referralID), $request->referralID, Crypt::encrypt($request->referralHistoryID), $sent_to, $date, $time));
 
         return response()->json(["message" => "Success"], 200);
     }
@@ -625,7 +659,7 @@ class patientController extends Controller{
         $notif->sent_at = $dateTime;
         $notif->save();
 
-        event(new NewNotification($notification, $user_id, 4, Crypt::encrypt($request->referralID), Crypt::encrypt($request->referralHistoryID), $sent_to, $date, $time));
+        event(new NewNotification($notification, $user_id, 4, Crypt::encrypt($request->referralID), $request->referralID, Crypt::encrypt($request->referralHistoryID), $sent_to, $date, $time));
         return response()->json(["message" => "Referral Created", "referralID" => $referralID], 200);
     }
     
@@ -663,7 +697,7 @@ class patientController extends Controller{
         $notif->sent_at = $dateTime;
         $notif->save();
 
-        event(new NewNotification($notification, $user_id, 3, Crypt::encrypt($request->referralID), Crypt::encrypt($request->referralHistoryID), $sent_to, $date, $time));
+        event(new NewNotification($notification, $user_id, 3, Crypt::encrypt($request->referralID), $request->referralID, Crypt::encrypt($request->referralHistoryID), $sent_to, $date, $time));
 
 
         return response()->json(["message" => "Referral Created", "referralID" => $referralID], 200);
@@ -703,7 +737,7 @@ class patientController extends Controller{
         $notif->sent_at = $dateTime;
         $notif->save();
 
-        event(new NewNotification($notification, $user_id, 2, Crypt::encrypt($request->referralID), Crypt::encrypt($request->referralHistoryID), $sent_to, $date, $time));
+        event(new NewNotification($notification, $user_id, 2, Crypt::encrypt($request->referralID), $request->referralID, Crypt::encrypt($request->referralHistoryID), $sent_to, $date, $time));
         
         return response()->json(["message" => "Referral Created", "referralID" => $referralID], 200);
 
@@ -744,7 +778,7 @@ class patientController extends Controller{
         $notif->sent_at = $dateTime;
         $notif->save();
 
-        event(new NewNotification($notification, $user_id, 9, Crypt::encrypt($request->referralID), Crypt::encrypt($request->referralHistoryID), $sent_to, $date, $time));
+        event(new NewNotification($notification, $user_id, 9, Crypt::encrypt($request->referralID), $request->referralID, Crypt::encrypt($request->referralHistoryID), $sent_to, $date, $time));
         
         return response()->json(["message" => "Referral Created", "referralID" => $referralID], 200);
 
@@ -786,7 +820,7 @@ class patientController extends Controller{
         $notif->sent_at = $dateTime;
         $notif->save();
 
-        event(new NewNotification($notification, $user_id, 3, Crypt::encrypt($request->referralID), Crypt::encrypt($request->referralHistoryID), $sent_to, $date, $time));
+        event(new NewNotification($notification, $user_id, 3, Crypt::encrypt($request->referralID), $request->referralID, Crypt::encrypt($request->referralHistoryID), $sent_to, $date, $time));
         return response()->json(["message" => "Referral Created", "referralID" => $referralID], 200);
     }
 
