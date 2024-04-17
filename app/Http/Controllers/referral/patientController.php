@@ -27,6 +27,13 @@ date_default_timezone_set('Asia/Manila');
 
 class patientController extends Controller{
   
+    private function getDateDifference($givenDateTime){
+        $givenDate = Carbon::parse($givenDateTime);
+        $currentDate = Carbon::now();
+        $diff = $currentDate->diff($givenDate);
+        return $diff;
+    }
+
     public function searchPatients(Request $request){
 
         $lastName = $request->input('lastName');
@@ -238,6 +245,12 @@ class patientController extends Controller{
         
             $referrals = $query->get();
             foreach ($referrals as $referral) {
+                $givenDateTime = $referral->birthDate;
+                $diff = $this->getDateDifference($givenDateTime);
+                $years = $diff->y;
+                $months = $diff->m;
+                $days = $diff->d;
+                $referral->Age = $years. ' YRS ' . $months . ' MTHS ' . $days . ' DYS';
                 $referral->encryptedReferralID = Crypt::encrypt($referral->referralID);
                 $referral->encryptedReferralHistoryID = Crypt::encrypt($referral->referralHistoryID);
             }
@@ -280,6 +293,12 @@ class patientController extends Controller{
         ->orderBy('patientreferrals.created_at', 'desc')
         ->get();
             foreach ($patientReferrals as $referral) {
+                $givenDateTime = $referral->birthDate;
+                $diff = $this->getDateDifference($givenDateTime);
+                $years = $diff->y;
+                $months = $diff->m;
+                $days = $diff->d;
+                $referral->Age = $years. ' YRS ' . $months . ' MTHS ' . $days . ' DYS';
                 $referralHistories = referralHistory::where('patientreferralhistory.referralID', $referral->referralID)
                 ->join('patientreferrals', 'patientreferralhistory.referralID', '=', 'patientreferrals.referralID')
                 ->join('patients', 'patients.patientID', '=', 'patientreferrals.patientID')
@@ -639,7 +658,7 @@ class patientController extends Controller{
         ]);
     
         $referralID = $referral->id;
-        $referralHistoryID = $referralHistory->referralHistoryID;
+        $referralHistoryID = $referralHistory->id;
 
         $user = Auth::user();
         $user_id = $user->id;
@@ -653,14 +672,14 @@ class patientController extends Controller{
         $notif->notification = $notification;
         $notif->notificationType = 4;
         $notif->referralID = Crypt::encrypt($request->referralID);
-        $notif->referralHistoryID = Crypt::encrypt($request->referralHistoryID);
+        $notif->referralHistoryID = Crypt::encrypt($referralHistoryID);
         $notif->user_id = $user->id; 
         $notif->sent_to = $sent_to;
         $notif->sent_at = $dateTime;
         $notif->save();
 
         event(new NewNotification($notification, $user_id, 4, Crypt::encrypt($request->referralID), $request->referralID, Crypt::encrypt($request->referralHistoryID), $sent_to, $date, $time));
-        return response()->json(["message" => "Referral Created", "referralID" => $referralID], 200);
+        return response()->json(["message" => "Referral Created", "referralID" => $referralHistoryID], 200);
     }
     
     public function transferToOtherHCI(Request $request){
@@ -800,7 +819,8 @@ class patientController extends Controller{
             'arrived' => 1,
         ]);
     
-        $referralID = $referralHistory->id;
+        $referralHistory = $referralHistory->referralHistoryID;
+        $newreferralID = $referralID;
 
         $user = Auth::user();
         $user_id = $user->id;
@@ -821,7 +841,27 @@ class patientController extends Controller{
         $notif->save();
 
         event(new NewNotification($notification, $user_id, 3, Crypt::encrypt($request->referralID), $request->referralID, Crypt::encrypt($request->referralHistoryID), $sent_to, $date, $time));
-        return response()->json(["message" => "Referral Created", "referralID" => $referralID], 200);
+
+        $user = Auth::user();
+        $user_id = $user->id;
+        $sent_to = $request->newReceivingHospital;
+        $notification = sprintf("You have a new referral for patient %s %s %s from OPCEN", $request->firstName, $request->middleName, $request->lastName);
+        $dateTime = Carbon::now();
+        $date = $dateTime->format('F j, Y'); 
+        $time = $dateTime->format('g:i A');
+        
+        $notif = new Notifications();
+        $notif->notification = $notification;
+        $notif->notificationType = 12;
+        $notif->referralID = Crypt::encrypt($request->referralID);
+        $notif->referralHistoryID = Crypt::encrypt($request->referralHistoryID);
+        $notif->user_id = $user->id; 
+        $notif->sent_to = $sent_to;
+        $notif->sent_at = $dateTime;
+        $notif->save();
+
+        event(new NewNotification($notification, $user_id, 12, Crypt::encrypt($newreferralID), $newreferralID, Crypt::encrypt($referralHistoryID), $sent_to, $date, $time));
+        return response()->json(["message" => "Referral Created", "referralID" => $newreferralID], 200);
     }
 
     public function setToExpired(){
