@@ -840,7 +840,7 @@ class patientController extends Controller{
         $referralHistoryID = $request->referralHistoryID;
 
         $update = referralHistory::where("referralHistoryID", $referralHistoryID)
-        ->update(['referralStatus' => 6]);    
+        ->update(['referralStatus' => 10]);    
 
         $referralHistory = referralHistory::create([
             'referralID' => $referralID,

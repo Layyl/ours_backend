@@ -25,29 +25,33 @@ class printReferralFormController extends Controller
         $referralHistoryID = Crypt::decrypt($encryptedreferralHistoryID);
         $data = referralHistory::query()
         ->select(
-          'patientreferralhistory.*',
-          'referringHospitalInst.FacilityName as referringHospitalDescription',
-          'referringHospitalInst.FacilityName as referringHospitalDescription',
-          'referringHospitalInst.street as referringHospitalStreet',
-          'referringHospitalInst.barangay as referringHospitalBarangay',
-          'referringHospitalInst.municipality as referringHospitalMunicipality',
-          'referringHospitalInst.province as referringHospitalProvince',
-          'pr.patientFiles',
-          'pr.referralID',
-          'pr.*',
-          'rr.Description as reasonForReferral',
-          'st.serviceType',
-          referralHistory::raw("DATE_FORMAT(pr.created_at, '%b %d, %Y') as referralDate"),
-          referralHistory::raw("DATE_FORMAT(pr.created_at, '%h:%i %p') as referralTime")
-      )
-        ->leftjoin('patientreferrals as pr', 'patientreferralhistory.referralID', '=', 'pr.referralID')
-        ->leftjoin('referralreasons as rr', 'pr.transferReason', '=', 'rr.id')
-        ->leftjoin('activefacilities as referringHospitalInst', 'pr.referringHospital', '=', 'referringHospitalInst.HealthFacilityCodeShort')
-        ->leftjoin('activefacilities as receivingHospitalInst', 'patientreferralhistory.receivingHospital', '=', 'receivingHospitalInst.HealthFacilityCodeShort')
+            'patientreferralhistory.*',
+            'referringHospitalInst.FacilityName as referringHospitalDescription',
+            'referringHospitalInst.FacilityName as referringHospitalDescription',
+            'referringHospitalInst.street as referringHospitalStreet',
+            'referringHospitalInst.barangay as referringHospitalBarangay',
+            'referringHospitalInst.municipality as referringHospitalMunicipality',
+            'referringHospitalInst.province as referringHospitalProvince',
+            'pr.patientFiles',
+            'pr.referralID',
+            'pr.*',
+            'rr.Description as reasonForReferral',
+            'st.serviceType',
+            referralHistory::raw("DATE_FORMAT(pr.created_at, '%b %d, %Y') as referralDate"),
+            referralHistory::raw("DATE_FORMAT(pr.created_at, '%h:%i %p') as referralTime")
+        )
+        ->leftJoin('patientreferrals as pr', 'patientreferralhistory.referralID', '=', 'pr.referralID')
+        ->leftJoin('referralreasons as rr', 'pr.transferReason', '=', 'rr.id')
+        ->leftJoin('activefacilities as referringHospitalInst', 'pr.referringHospital', '=', 'referringHospitalInst.HealthFacilityCodeShort')
+        ->leftJoin('activefacilities as receivingHospitalInst', 'patientreferralhistory.receivingHospital', '=', 'receivingHospitalInst.HealthFacilityCodeShort')
         ->leftJoin('servicetypes as st', 'pr.receivingDepartment', '=', 'st.serviceTypeID')
         ->where('patientreferralhistory.referralhistoryID', '=', $referralHistoryID)
         ->orderBy('pr.created_at', 'DESC')
         ->first();
+
+    if (!$data->serviceType) {
+        $data->serviceType = $data->receivingDepartment;
+    }
     
         if(!$data) {
             return response()->json(['message' => 'No result found', 'status' => 404]);
@@ -76,20 +80,26 @@ class printReferralFormController extends Controller
             ->where("Id", $barangayID)
             ->value('Name');
         
-        if($doctorID != ''){
-        $doctorName = doctors::selectRaw("CONCAT(payroll.name, ' ', payroll.lname) AS fullName")
-            ->join('position', 'payroll.positionid', '=', 'position.positionid')
-            ->join('department', 'payroll.department', '=', 'department.id')
-            ->where('payroll.status', 'A')
-            ->where(function ($query) {
-                $query->whereBetween('payroll.positionid', [47, 57])
-                    ->orWhere('payroll.positionid', 34)
-                    ->orWhereBetween('payroll.positionid', [23, 25]);
-            })
-            ->where('payroll.id', $doctorID)
-            ->first();
-            $data->doctorName = strtoupper($doctorName->fullName) ?? '';
-        }
+            if(!empty($doctorID)){
+                $doctorName = doctors::selectRaw("CONCAT(payroll.name, ' ', payroll.lname) AS fullName")
+                    ->join('position', 'payroll.positionid', '=', 'position.positionid')
+                    ->join('department', 'payroll.department', '=', 'department.id')
+                    ->where('payroll.status', 'A')
+                    ->where(function ($query) {
+                        $query->whereBetween('payroll.positionid', [47, 57])
+                            ->orWhere('payroll.positionid', 34)
+                            ->orWhereBetween('payroll.positionid', [23, 25]);
+                    })
+                    ->where('payroll.id', $doctorID)
+                    ->first();
+            
+                if ($doctorName) {
+                    $data->doctorName = strtoupper($doctorName->fullName);
+                } else {
+                    $data->doctorName = strtoupper($doctorID);
+                }
+            }
+            
         $civilStatusDesc = civilStatus::where('CivilStatusID',$civilStatusID)->first();
 
         $data->provinceDesc = $provinceDesc ?? '';
