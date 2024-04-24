@@ -50,6 +50,7 @@ Route::middleware('auth:sanctum')->group(function(){
         Route::post('updatePatientData','updatePatientData');
         Route::post('updateVitalSigns','updateVitalSigns');
         Route::post('createNewReferral','createNewReferral');
+        Route::post('createReferralSafru','createReferralSafru');
         Route::post('setToOngoing','setToOngoing');
         Route::post('acceptPatient','acceptPatient');
         Route::post('deferPatient','deferPatient');

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\referral;
 
 use App\Events\NewNotification;
 use App\Http\Controllers\Controller;
+use App\Models\medixPatients;
 use App\Models\referral\barangay;
 use App\Models\referral\civilStatus;
 use App\Models\referral\doctors;
@@ -35,32 +36,79 @@ class patientController extends Controller{
     }
 
     public function searchPatients(Request $request){
-
+        $patientNo = $request->input('patientNo');
         $lastName = $request->input('lastName');
         $firstName = $request->input('firstName');
         $middleName = $request->input('middleName');
+    
+        $patients = medixPatients::whereNotNull('p.PatientNo')->select([
+            'PatientHistory.PatientHistoryID',
+            'PatientHistory.PatientID',
+            'pi.FirstName as firstName',
+            'pi.MiddleName as middleName',
+            'pi.LastName as lastName',
+            'p.PatientNo',
+            'pr.SuffixName as suffix',
+            'pr.Gender as gender',
+            'pr.BirthDate',
+            'pr.CivilStatusID as civilStatus',
+            'permAdr.Street AS street',
+            'permAdr.MobileNo AS permanent_mobile',
+            'permAdr.RegionID AS permanent_region',
+            'permAdr.ProvinceID AS provinceID',
+            'permAdr.MunicipalityID AS municipalityID',
+            'permAdr.Barangay'
+        ])
+        ->join(medixPatients::raw('(SELECT PatientID, MAX(PatientHistoryID) AS LatestPatientHistoryID FROM PatientHistory WHERE PatientTypeID != 6 GROUP BY PatientID) AS latest'), function($join) {
+            $join->on('PatientHistory.PatientID', '=', 'latest.PatientID')
+                ->on('PatientHistory.PatientHistoryID', '=', 'latest.LatestPatientHistoryID');
+        })
+        ->join('PatientInfo AS pi', 'PatientHistory.PatientHistoryID', '=', 'pi.PatientHistoryID')
+        ->join('Patients AS p', 'PatientHistory.PatientID', '=', 'p.PatientID')
+        ->join('Persons AS pr', 'p.PersonID', '=', 'pr.PersonID')
+        ->leftJoin('Address AS currAdr', function($join) {
+            $join->on('PatientHistory.PatientHistoryID', '=', 'currAdr.ObjID')
+                ->where('currAdr.EntityID', '=', 19);
+        })
+        ->leftJoin('Address AS permAdr', function($join) {
+            $join->on('PatientHistory.PatientHistoryID', '=', 'permAdr.ObjID')
+                ->where('permAdr.EntityID', '=', 4);
+        })
+        
+        ->when($request->firstName, function ($query) use ($request) {
+            $query->where('pi.FirstName', 'LIKE', '%' . $request->firstName . '%');
+        })
+        ->when($request->middleName, function ($query) use ($request) {
+            $query->where('pi.MiddleName', 'LIKE', '%' . $request->middleName . '%');
+        })
+        ->when($request->lastName, function ($query) use ($request) {
+            $query->where('pi.LastName', 'LIKE', '%' . $request->lastName . '%');
+        })
+        ->when($request->hospitalNo, function ($query) use ($request) {
+        $encryptedPatientID = $request->input('hospitalNo');
+        $hospitalNo = Crypt::decrypt($encryptedPatientID);
+        $query->where('p.PatientID', $hospitalNo);
+        })
+        ->get();
 
-        $query = patients::query()
-            ->select('patients.patientID','patients.lastName', 'patients.firstName', 'patients.middleName', 'patients.suffix', 'patients.birthDate', 'patients.gender');
-
-        if ($lastName) {
-            $query->where('patients.lastName', 'like', '%' . $lastName . '%');
+        foreach ($patients as $patient) {
+        $PermanentBarangay = Barangay::where('MunicipalityId', $patient->municipalityID)
+        ->where('Name', $patient->Barangay)
+        ->select('Id AS BarangayID')
+        ->first();
+        unset($patient->Barangay);
+        $patient->barangayID = $PermanentBarangay ? $PermanentBarangay->BarangayID : null;
         }
-        if ($firstName) {
-            $query->where('patients.firstName', 'like', '%' . $firstName . '%');
-        }
-        if ($middleName) {
-            $query->where('patients.middleName', 'like', '%' . $middleName . '%');
-        }
 
-        $patients = $query->get();
-
+        foreach ($patients as $pat) {
+            $pat->encryptedPatientID = Crypt::encrypt($pat->PatientID);
+        }
         return response()->json(['patients' => $patients], 200);
     }
     
     public function fetchPatientData(Request $request){
-        $query = patients::query();
-        $patientData = $query->where("patients.patientID",$request->patID)
+        $query = referrals::query();
+        $patientData = $query->where("patientreferrals.patientID",$request->patID)
        ->get();
         return $patientData;
     }
@@ -73,23 +121,22 @@ class patientController extends Controller{
         $referralID = $request->input('referralID');
     
         $query = Referrals::query()
-            ->join('patients', 'patientreferrals.patientID', '=', 'patients.patientID')
             ->join('activefacilities', 'patientreferrals.referringHospital', '=', 'activefacilities.HealthFacilityCodeShort')
-            ->selectRaw("CONCAT_WS(' ', patients.firstName, patients.middleName, patients.lastName, patients.suffix) as fullName")
-            ->addSelect('activefacilities.FacilityName', 'patients.birthDate', 'patients.gender', 'patients.firstName', 'patients.middleName', 'patients.lastName', 'patientreferrals.*')
+            ->selectRaw("CONCAT_WS(' ', patientreferrals.firstName, patientreferrals.middleName, patientreferrals.lastName, patientreferrals.suffix) as fullName")
+            ->addSelect('activefacilities.FacilityName', 'patientreferrals.*')
             ->selectRaw("DATE_FORMAT(patientreferrals.created_at, '%b %d, %Y %h:%i %p') as formatted_created_at")
             ->orderBy('patientreferrals.created_at', 'desc');
         if ($referralID) {
             $query->where('patientreferrals.referralID', $referralID);
         } else {
             if ($lastName) {
-                $query->where('patients.lastName', 'like', '%' . $lastName . '%');
+                $query->where('patientreferrals.lastName', 'like', '%' . $lastName . '%');
             }
             if ($firstName) {
-                $query->where('patients.firstName', 'like', '%' . $firstName . '%');
+                $query->where('patientreferrals.firstName', 'like', '%' . $firstName . '%');
             }
             if ($middleName) {
-                $query->where('patients.middleName', 'like', '%' . $middleName . '%');
+                $query->where('patientreferrals.middleName', 'like', '%' . $middleName . '%');
             }
         }
     
@@ -109,18 +156,12 @@ class patientController extends Controller{
                 'patientreferrals.*',
                 'referringHospitalInst.FacilityName as referringHospitalDescription',
                 'receivingHospitalInst.FacilityName as receivingHospitalDescription',
-                'p.birthDate',
-                'p.gender',
-                'p.firstName',
-                'p.middleName',
-                'p.lastName',
                 'prh.*',
                 Referrals::raw("DATE_FORMAT(patientreferrals.created_at, '%b %d, %Y %h:%i %p') as formatted_created_at")
             )
-            ->join('patientreferralhistory as prh', 'patientreferrals.referralID', '=', 'prh.referralID')
-            ->join('activefacilities as referringHospitalInst', 'patientreferrals.referringHospital', '=', 'referringHospitalInst.HealthFacilityCodeShort')
-            ->join('activefacilities as receivingHospitalInst', 'prh.receivingHospital', '=', 'receivingHospitalInst.HealthFacilityCodeShort')
-            ->leftJoin('patients as p', 'patientreferrals.patientID', '=', 'p.patientID')
+            ->leftJoin('patientreferralhistory as prh', 'patientreferrals.referralID', '=', 'prh.referralID')
+            ->leftJoin('activefacilities as referringHospitalInst', 'patientreferrals.referringHospital', '=', 'referringHospitalInst.HealthFacilityCodeShort')
+            ->leftJoin('activefacilities as receivingHospitalInst', 'prh.receivingHospital', '=', 'receivingHospitalInst.HealthFacilityCodeShort')
             ->where('prh.referralhistoryID', '=', $referralHistoryID)
             ->orderBy('patientreferrals.created_at', 'desc')
             ->get();
@@ -153,18 +194,12 @@ class patientController extends Controller{
                 'patientreferrals.*',
                 'referringHospitalInst.FacilityName as referringHospitalDescription',
                 'receivingHospitalInst.FacilityName as receivingHospitalDescription',
-                'p.birthDate',
-                'p.gender',
-                'p.firstName',
-                'p.middleName',
-                'p.lastName',
                 'prh.*',
                 Referrals::raw("DATE_FORMAT(patientreferrals.created_at, '%b %d, %Y %h:%i %p') as formatted_created_at")
             )
-            ->join('patientreferralhistory as prh', 'patientreferrals.referralID', '=', 'prh.referralID')
-            ->join('activefacilities as referringHospitalInst', 'patientreferrals.referringHospital', '=', 'referringHospitalInst.HealthFacilityCodeShort')
-            ->join('activefacilities as receivingHospitalInst', 'prh.receivingHospital', '=', 'receivingHospitalInst.HealthFacilityCodeShort')
-            ->leftJoin('patients as p', 'patientreferrals.patientID', '=', 'p.patientID')
+            ->leftJoin('patientreferralhistory as prh', 'patientreferrals.referralID', '=', 'prh.referralID')
+            ->leftJoin('activefacilities as referringHospitalInst', 'patientreferrals.referringHospital', '=', 'referringHospitalInst.HealthFacilityCodeShort')
+            ->leftJoin('activefacilities as receivingHospitalInst', 'prh.receivingHospital', '=', 'receivingHospitalInst.HealthFacilityCodeShort')
             ->where('patientreferrals.referralID', '=', $referralID)
             ->orderBy('patientreferrals.created_at', 'desc')
             ->get();
@@ -173,8 +208,8 @@ class patientController extends Controller{
             $referralHistories = referralHistory::where('referralID', $referral->referralID)
                 ->join('activefacilities as receivingHospitalInst', 'patientreferralhistory.receivingHospital', '=', 'receivingHospitalInst.HealthFacilityCodeShort')
                 ->addSelect('receivingHospitalInst.FacilityName as receivingHospitalDescription', 'receivingHospitalInst.FacilityName as receivingHospitalDescription', 'patientreferralhistory.*')
-                ->selectRaw("DATE_FORMAT(created_at, '%b %d, %Y %h:%i %p') as formatted_created_at")
-                ->orderBy('created_at', 'desc')
+                ->selectRaw("DATE_FORMAT(patientreferralhistory.created_at, '%b %d, %Y %h:%i %p') as formatted_created_at")
+                ->orderBy('patientreferralhistory.created_at', 'desc')
                 ->get();
     
             foreach ($referralHistories as $history) {
@@ -217,12 +252,11 @@ class patientController extends Controller{
             ->where('patientreferralhistory.receivingHospital', '=', $hciID)
             ->whereBetween('patientreferralhistory.created_at', [now()->subDays(1), now()])
             ->where('pr.status','1')
-            ->join('patientreferrals as pr', 'patientreferralhistory.referralID', '=', 'pr.referralID')
-            ->join('activefacilities as referringHospitalInst', 'pr.referringHospital', '=', 'referringHospitalInst.HealthFacilityCodeShort')
-            ->join('activefacilities as receivingHospitalInst', 'patientreferralhistory.receivingHospital', '=', 'receivingHospitalInst.HealthFacilityCodeShort')
-            ->leftJoin('patients as p', 'pr.patientID', '=', 'p.patientID')
-            ->selectRaw("CONCAT_WS(' ', p.firstName, p.middleName, p.lastName, p.suffix) as fullName")
-            ->addSelect('patientreferralhistory.*','referringHospitalInst.FacilityName as referringHospitalDescription', 'receivingHospitalInst.FacilityName as receivingHospitalDescription', 'p.birthDate', 'p.gender', 'p.firstName', 'p.middleName', 'p.lastName', 'pr.*')          
+            ->leftJoin('patientreferrals as pr', 'patientreferralhistory.referralID', '=', 'pr.referralID')
+            ->leftJoin('activefacilities as referringHospitalInst', 'pr.referringHospital', '=', 'referringHospitalInst.HealthFacilityCodeShort')
+            ->leftJoin('activefacilities as receivingHospitalInst', 'patientreferralhistory.receivingHospital', '=', 'receivingHospitalInst.HealthFacilityCodeShort')
+            ->selectRaw("CONCAT_WS(' ', pr.firstName, pr.middleName, pr.lastName, pr.suffix) as fullName")
+            ->addSelect('patientreferralhistory.*','referringHospitalInst.FacilityName as referringHospitalDescription', 'receivingHospitalInst.FacilityName as receivingHospitalDescription', 'pr.*')          
             ->selectRaw("DATE_FORMAT(pr.created_at, '%b %d, %Y %h:%i %p') as formatted_created_at")
             ->orderBy('patientreferralhistory.created_at','desc');
             if ($referralID) {
@@ -271,11 +305,10 @@ class patientController extends Controller{
         $middleName = $request->input('middleName');
         $referralID = $request->input('referralID');
         
-        $patientReferrals = Referrals::join('patients', 'patientreferrals.patientID', '=', 'patients.patientID')
-        ->join('activefacilities as referringHospitalInst', 'patientreferrals.referringHospital', '=', 'referringHospitalInst.HealthFacilityCodeShort')
-        ->addSelect('referringHospitalInst.FacilityName as referringHospitalDescription', 'patients.birthDate', 'patients.gender', 'patients.firstName', 'patients.middleName', 'patients.lastName', 'patientreferrals.*')
+        $patientReferrals = Referrals::leftJoin('activefacilities as referringHospitalInst', 'patientreferrals.referringHospital', '=', 'referringHospitalInst.HealthFacilityCodeShort')
+        ->addSelect('referringHospitalInst.FacilityName as referringHospitalDescription', 'patientreferrals.birthDate', 'patientreferrals.gender', 'patientreferrals.firstName', 'patientreferrals.middleName', 'patientreferrals.lastName', 'patientreferrals.*')
         ->selectRaw("DATE_FORMAT(patientreferrals.created_at, '%b %d, %Y %h:%i %p') as formatted_created_at")
-        ->selectRaw("CONCAT_WS(' ', patients.firstName, patients.middleName, patients.lastName, patients.suffix) as fullName")
+        ->selectRaw("CONCAT_WS(' ', patientreferrals.firstName, patientreferrals.middleName, patientreferrals.lastName, patientreferrals.suffix) as fullName")
         ->where('patientreferrals.referringHospital', $hciID)
         ->where('patientreferrals.status','1')
         ->when($referralID, function ($query) use ($referralID) {
@@ -283,11 +316,11 @@ class patientController extends Controller{
         })
         ->when(!$referralID, function ($query) use ($lastName, $firstName, $middleName) {
             $query->when($lastName, function ($query) use ($lastName) {
-                $query->where('patients.lastName', 'like', '%' . $lastName . '%');
+                $query->where('patientreferrals.lastName', 'like', '%' . $lastName . '%');
             })->when($firstName, function ($query) use ($firstName) {
-                $query->where('patients.firstName', 'like', '%' . $firstName . '%');
+                $query->where('patientreferrals.firstName', 'like', '%' . $firstName . '%');
             })->when($middleName, function ($query) use ($middleName) {
-                $query->where('patients.middleName', 'like', '%' . $middleName . '%');
+                $query->where('patientreferrals.middleName', 'like', '%' . $middleName . '%');
             });
         })
         ->orderBy('patientreferrals.created_at', 'desc')
@@ -300,10 +333,9 @@ class patientController extends Controller{
                 $days = $diff->d;
                 $referral->Age = $years. ' YRS ' . $months . ' MTHS ' . $days . ' DYS';
                 $referralHistories = referralHistory::where('patientreferralhistory.referralID', $referral->referralID)
-                ->join('patientreferrals', 'patientreferralhistory.referralID', '=', 'patientreferrals.referralID')
-                ->join('patients', 'patients.patientID', '=', 'patientreferrals.patientID')
-                ->join('activefacilities as receivingHospitalInst', 'patientreferralhistory.receivingHospital', '=', 'receivingHospitalInst.HealthFacilityCodeShort')
-                ->addSelect('receivingHospitalInst.FacilityName as receivingHospitalDescription', 'receivingHospitalInst.FacilityName as receivingHospitalDescription','patientreferralhistory.*', 'patients.*')
+                ->leftJoin('patientreferrals', 'patientreferralhistory.referralID', '=', 'patientreferrals.referralID')
+                ->leftJoin('activefacilities as receivingHospitalInst', 'patientreferralhistory.receivingHospital', '=', 'receivingHospitalInst.HealthFacilityCodeShort')
+                ->addSelect('receivingHospitalInst.FacilityName as receivingHospitalDescription', 'receivingHospitalInst.FacilityName as receivingHospitalDescription','patientreferralhistory.*', 'patientreferrals.*')
                 ->selectRaw("DATE_FORMAT(patientreferralhistory.created_at, '%b %d, %Y %h:%i %p') as formatted_created_at")
                 ->orderBy('patientreferralhistory.created_at', 'desc')
                 ->get();
@@ -333,22 +365,21 @@ class patientController extends Controller{
         $middleName = $request->input('middleName');
         $referralID = $request->input('referralID');
         
-        $patientReferrals = Referrals::join('patients', 'patientreferrals.patientID', '=', 'patients.patientID')
-        ->join('activefacilities as referringHospitalInst', 'patientreferrals.referringHospital', '=', 'referringHospitalInst.HealthFacilityCodeShort')
-        ->addSelect('referringHospitalInst.FacilityName as referringHospitalDescription', 'patients.birthDate', 'patients.gender', 'patients.firstName', 'patients.middleName', 'patients.lastName', 'patientreferrals.*')
+        $patientReferrals = Referrals::leftJoin('activefacilities as referringHospitalInst', 'patientreferrals.referringHospital', '=', 'referringHospitalInst.HealthFacilityCodeShort')
+        ->addSelect('referringHospitalInst.FacilityName as referringHospitalDescription','patientreferrals.*')
         ->selectRaw("DATE_FORMAT(patientreferrals.created_at, '%b %d, %Y %h:%i %p') as formatted_created_at")
-        ->selectRaw("CONCAT_WS(' ', patients.firstName, patients.middleName, patients.lastName, patients.suffix) as fullName")
+        ->selectRaw("CONCAT_WS(' ', patientreferrals.firstName, patientreferrals.middleName, patientreferrals.lastName, patientreferrals.suffix) as fullName")
         ->where('patientreferrals.status','1')
         ->when($referralID, function ($query) use ($referralID) {
             return $query->where('patientreferrals.referralID', $referralID);
         })
         ->when(!$referralID, function ($query) use ($lastName, $firstName, $middleName) {
             $query->when($lastName, function ($query) use ($lastName) {
-                $query->where('patients.lastName', 'like', '%' . $lastName . '%');
+                $query->where('patientreferrals.lastName', 'like', '%' . $lastName . '%');
             })->when($firstName, function ($query) use ($firstName) {
-                $query->where('patients.firstName', 'like', '%' . $firstName . '%');
+                $query->where('patientreferrals.firstName', 'like', '%' . $firstName . '%');
             })->when($middleName, function ($query) use ($middleName) {
-                $query->where('patients.middleName', 'like', '%' . $middleName . '%');
+                $query->where('patientreferrals.middleName', 'like', '%' . $middleName . '%');
             });
         })
         ->orderBy('patientreferrals.created_at', 'desc')
@@ -357,8 +388,8 @@ class patientController extends Controller{
                 $referralHistories = referralHistory::where('referralID', $referral->referralID)
                     ->join('activefacilities as receivingHospitalInst', 'patientreferralhistory.receivingHospital', '=', 'receivingHospitalInst.HealthFacilityCodeShort')
                     ->addSelect('receivingHospitalInst.FacilityName as receivingHospitalDescription', 'receivingHospitalInst.FacilityName as receivingHospitalDescription','patientreferralhistory.*')
-                    ->selectRaw("DATE_FORMAT(created_at, '%b %d, %Y %h:%i %p') as formatted_created_at")
-                    ->orderBy('created_at', 'desc')
+                    ->selectRaw("DATE_FORMAT(patientreferralhistory.created_at, '%b %d, %Y %h:%i %p') as formatted_created_at")
+                    ->orderBy('patientreferralhistory.created_at', 'desc')
                     ->get();
                 
                 foreach ($referralHistories as $history) {
@@ -414,7 +445,7 @@ class patientController extends Controller{
         $user = Auth::user();
         $user_id = $user->id;
         $sent_to = $request->referringHospital;
-        $notification = sprintf("Your Patient %s %s %s has been accepted", $request->firstName, $request->middleName, $request->lastName);
+        $notification = sprintf("Your Patient %s %s %s has been accepted. Do not forget to print the referral form. Thank you.", $request->firstName, $request->middleName, $request->lastName);
         $dateTime = Carbon::now();
         $date = $dateTime->format('F j, Y'); 
         $time = $dateTime->format('g:i A');
@@ -579,30 +610,14 @@ class patientController extends Controller{
         $referrerContact = (int)preg_replace('/[^0-9]/', '', $request->referrerContact);
         $patientContact = (int)preg_replace('/[^0-9]/', '', $request->patientContact);
         $informantContact = (int)preg_replace('/[^0-9]/', '', $request->informantContact);
-        
-        if(isset($request->newReferral)){
-        $newReferral = $request->newReferral;
-        }else{
-            $newReferral = 0;
-        }
 
-        if($newReferral == 1){
-        $patient = patients::create([
+        $referral = referrals::create([
             "lastName" => $request->lastName,
             "firstName" => $request->firstName,
             "middleName" => $request->middleName,
             "suffix" => $request->suffix,
             "birthDate" => $birthdate,
             "gender" => $request->gender,
-            "created_by" => $request->created_by 
-        ]);
-        $patientID = $patient->id;
-        }else{
-            $patientID = $request->patientID;
-        }
-
-        $referral = referrals::create([
-            'patientID' => $patientID,
             'referringHospital' => $request->referringHospital,
             'referringDoctor' => $request->referringDoctor,
             'referrerContact' => $referrerContact,
@@ -678,10 +693,66 @@ class patientController extends Controller{
         $notif->sent_at = $dateTime;
         $notif->save();
 
-        event(new NewNotification($notification, $user_id, 4, Crypt::encrypt($request->referralID), $request->referralID, Crypt::encrypt($request->referralHistoryID), $sent_to, $date, $time));
-        return response()->json(["message" => "Referral Created", "referralID" => $referralHistoryID], 200);
+        event(new NewNotification($notification, $user_id, 4, Crypt::encrypt($referralID), $request->referralID, Crypt::encrypt($referralHistoryID), $sent_to, $date, $time));
+        return response()->json(["message" => "Referral Created", "referralID" => $referralID], 200);
     }
     
+    public function createReferralSafru(Request $request){
+
+        $birthdate = date('Y-m-d', strtotime($request->birthDate));
+        $referrerContact = (int)preg_replace('/[^0-9]/', '', $request->referrerContact);
+        $patientContact = (int)preg_replace('/[^0-9]/', '', $request->patientContact);
+        $informantContact = (int)preg_replace('/[^0-9]/', '', $request->informantContact);
+
+        $referral = referrals::create([
+            "lastName" => $request->lastName,
+            "firstName" => $request->firstName,
+            "middleName" => $request->middleName,
+            "suffix" => $request->suffix,
+            "gender" => $request->gender,
+            'referringHospital' => $request->referringHospital,
+            'street' => $request->street,
+            'provinceID' => $request->provinceID,
+            'municipalityID' => $request->municipalityID,
+            'barangayID' => $request->barangayID,
+            'impression' => $request->impression,
+            'locationOfAccident' => $request->locationOfAccident,
+            'typeOfInjury' => $request->typeOfInjury,
+            'updatedBy' => $request->updatedBy,
+            'safru' => 1,
+            'status' => 1,
+        ]);
+        $referralHistory = referralHistory::create([
+            'referralID' => $referral->id,
+            'receivingHospital' => 271,
+            'referralStatus' => 1,
+        ]);
+    
+        $referralID = $referral->id;
+        $referralHistoryID = $referralHistory->id;
+
+        $user = Auth::user();
+        $user_id = $user->id;
+        $sent_to = $request->receivingHospital;
+        $notification = sprintf("You have a new referral: %s %s %s from SAFRU", $request->firstName, $request->middleName, $request->lastName);
+        $dateTime = Carbon::now();
+        $date = $dateTime->format('F j, Y'); 
+        $time = $dateTime->format('g:i A');
+        
+        $notif = new Notifications();
+        $notif->notification = $notification;
+        $notif->notificationType = 13;
+        $notif->referralID = Crypt::encrypt($request->referralID);
+        $notif->referralHistoryID = Crypt::encrypt($referralHistoryID);
+        $notif->user_id = $user->id; 
+        $notif->sent_to = $sent_to;
+        $notif->sent_at = $dateTime;
+        $notif->save();
+
+        event(new NewNotification($notification, $user_id, 13, Crypt::encrypt($request->referralID), $request->referralID, Crypt::encrypt($request->referralHistoryID), $sent_to, $date, $time));
+        return response()->json(["message" => "Referral Created", "referralID" => $referralID], 200);
+    }
+
     public function transferToOtherHCI(Request $request){
 
         $referralID = $request->referralID;
@@ -816,6 +887,7 @@ class patientController extends Controller{
             'referralID' => $referralID,
             'receivingHospital' => $request->newReceivingHospital,
             'referralStatus' => 3,
+            'accepted' => 1,
             'arrived' => 1,
         ]);
     
@@ -883,8 +955,15 @@ class patientController extends Controller{
     
     public function fetchDoctors(){
         $query = doctors::query();
-        $doctors = $query->selectRaw("CONCAT(firstName, ' ', lastName) AS fullName, doctorID")
-        ->where('status', 1)
+        $doctors = $query->selectRaw("CONCAT(payroll.name, ' ', payroll.lname) AS fullName, payroll.id as doctorID")
+        ->join('position', 'payroll.positionid', '=', 'position.positionid')
+        ->join('department', 'payroll.department', '=', 'department.id')
+        ->where('payroll.status', 'A')
+        ->where(function ($query) {
+            $query->whereBetween('payroll.positionid', [47, 57])
+                ->orWhere('payroll.positionid', 34)
+                ->orWhereBetween('payroll.positionid', [23, 25]);
+        })
         ->get();
         return $doctors;
     }

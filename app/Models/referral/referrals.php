@@ -7,7 +7,12 @@ use Illuminate\Database\Eloquent\Model;
 class referrals extends Model
 {
     protected $fillable = [
-        'patientID',
+        'lastName',
+        'firstName',
+        'middleName',
+        'suffix',
+        'birthDate',
+        'gender',
         'initialReferralID',
         'referringHospital',
         'referringDoctor',
@@ -23,6 +28,8 @@ class referrals extends Model
         'provinceID',
         'municipalityID',
         'barangayID',
+        'locationOfAccident',
+        'typeOfInjury',
         'patientContact',
         'informantName',
         'informantRelationship',
@@ -56,6 +63,7 @@ class referrals extends Model
         'referralToFill',
         'addedBy',
         'updatedBy',
+        'safru',
         'status',
     ];
 

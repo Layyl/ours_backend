@@ -4,6 +4,8 @@ namespace App\Http\Controllers\referral;
 
 use App\Http\Controllers\Controller;
 use App\Models\referral\barangay;
+use App\Models\referral\civilStatus;
+use App\Models\referral\doctors;
 use App\Models\referral\municipality;
 use App\Models\referral\province;
 use App\Models\referral\referralHistory;
@@ -25,28 +27,27 @@ class printReferralFormController extends Controller
         ->select(
           'patientreferralhistory.*',
           'referringHospitalInst.FacilityName as referringHospitalDescription',
-          'receivingHospitalInst.FacilityName as receivingHospitalDescription',
-          'p.birthDate',
-          'p.gender',
-          'p.firstName',
-          'p.middleName',
-          'p.lastName',
+          'referringHospitalInst.FacilityName as referringHospitalDescription',
+          'referringHospitalInst.street as referringHospitalStreet',
+          'referringHospitalInst.barangay as referringHospitalBarangay',
+          'referringHospitalInst.municipality as referringHospitalMunicipality',
+          'referringHospitalInst.province as referringHospitalProvince',
           'pr.patientFiles',
           'pr.referralID',
           'pr.*',
           'rr.Description as reasonForReferral',
-          
+          'st.serviceType',
           referralHistory::raw("DATE_FORMAT(pr.created_at, '%b %d, %Y') as referralDate"),
           referralHistory::raw("DATE_FORMAT(pr.created_at, '%h:%i %p') as referralTime")
       )
-      ->join('patientreferrals as pr', 'patientreferralhistory.referralID', '=', 'pr.referralID')
-      ->join('referralreasons as rr', 'pr.transferReason', '=', 'rr.id')
-       ->join('activefacilities as referringHospitalInst', 'pr.referringHospital', '=', 'referringHospitalInst.HealthFacilityCodeShort')
-      ->join('activefacilities as receivingHospitalInst', 'patientreferralhistory.receivingHospital', '=', 'receivingHospitalInst.HealthFacilityCodeShort')
-      ->leftJoin('patients as p', 'pr.patientID', '=', 'p.patientID')
-      ->where('patientreferralhistory.referralhistoryID', '=', $referralHistoryID)
-      ->orderBy('pr.created_at', 'DESC')
-      ->first();
+        ->leftjoin('patientreferrals as pr', 'patientreferralhistory.referralID', '=', 'pr.referralID')
+        ->leftjoin('referralreasons as rr', 'pr.transferReason', '=', 'rr.id')
+        ->leftjoin('activefacilities as referringHospitalInst', 'pr.referringHospital', '=', 'referringHospitalInst.HealthFacilityCodeShort')
+        ->leftjoin('activefacilities as receivingHospitalInst', 'patientreferralhistory.receivingHospital', '=', 'receivingHospitalInst.HealthFacilityCodeShort')
+        ->leftJoin('servicetypes as st', 'pr.receivingDepartment', '=', 'st.serviceTypeID')
+        ->where('patientreferralhistory.referralhistoryID', '=', $referralHistoryID)
+        ->orderBy('pr.created_at', 'DESC')
+        ->first();
     
         if(!$data) {
             return response()->json(['message' => 'No result found', 'status' => 404]);
@@ -60,7 +61,8 @@ class printReferralFormController extends Controller
         $provinceID = $data->provinceID;
         $municipalityID = $data->municipalityID;
         $barangayID = $data->barangayID;
-
+        $doctorID = $data->assignedDoctor;
+        $civilStatusID = $data->civilStatus;
 
         $provinceDesc = province::where("status", 1)
         ->where("ProvinceID", $provinceID)
@@ -74,9 +76,27 @@ class printReferralFormController extends Controller
             ->where("Id", $barangayID)
             ->value('Name');
         
+        if($doctorID != ''){
+        $doctorName = doctors::selectRaw("CONCAT(payroll.name, ' ', payroll.lname) AS fullName")
+            ->join('position', 'payroll.positionid', '=', 'position.positionid')
+            ->join('department', 'payroll.department', '=', 'department.id')
+            ->where('payroll.status', 'A')
+            ->where(function ($query) {
+                $query->whereBetween('payroll.positionid', [47, 57])
+                    ->orWhere('payroll.positionid', 34)
+                    ->orWhereBetween('payroll.positionid', [23, 25]);
+            })
+            ->where('payroll.id', $doctorID)
+            ->first();
+            $data->doctorName = strtoupper($doctorName->fullName) ?? '';
+        }
+        $civilStatusDesc = civilStatus::where('CivilStatusID',$civilStatusID)->first();
+
         $data->provinceDesc = $provinceDesc ?? '';
         $data->municipalityDesc = $municipalityDesc ?? '';
-        $data->barangayDesc = $barangayDesc ?? '';
+        $data->barangayDesc = strtoupper($barangayDesc) ?? '';
+        
+        $data->civilStatusDesc = strtoupper($civilStatusDesc->Name) ?? '';
         
             
 
@@ -86,7 +106,7 @@ class printReferralFormController extends Controller
         $months = $diff->m;
         $days = $diff->d;
         $data->Age = $years. ' YRS ' . $months . ' MTHS ' . $days . ' DYS';
-        $data->Gender = ($gender == 1) ? 'Male' : 'Female';
+        $data->Gender = ($gender == 1) ? 'MALE' : 'FEMALE';
         $html = view('forms.referralForm', ['data' => $data])->render();
         $dompdf = new DomPDF(['paper' => 'A4', 'orientation' => 'portrait']);
         $dompdf->loadHtml($html);

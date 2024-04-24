@@ -6,6 +6,6 @@ use Illuminate\Database\Eloquent\Model;
 
 class doctors extends Model
 {
-    protected $table = 'doctors';
-    protected $connection = 'mysql';
+    protected $table = 'Payroll';
+    protected $connection = 'mysql_pr';
 }

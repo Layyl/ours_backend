@@ -21,16 +21,12 @@
          table {
          width: 100%;
          }
-         /* table, th,td, tr{
-         border: 1px solid black;
-         border-collapse:collapse;
-         font-size: 12px;
-         } */
          td{
-            vertical-align: top;
+         vertical-align: center;
          padding-top: 0.3rem;
          font-size: 12px;
          text-align: justify;
+         font-family:'Times New Roman', Times, serif;
          }
          .underlined{
             text-decoration:underline
@@ -89,111 +85,126 @@
          <br>
          <b style='font-size:12px;'>INTERHOSPITAL REFERRAL FORM</b><br><br>
       </div>
-      
       <table>
          <tr>
-            <td width = "11rem">Referring Hospital or Facility:</td>
-            <td style = "border-bottom: 0.5px solid #000;">{{$data->referringHospitalDescription}}</td>
+            <td width = "9rem">Date of Referral: </td>
+            <td style = "border-bottom: 0.5px solid #000;"><b>{{$data->referralDate}}</b></td>
+            <td width = "9rem">Time of Referral: </td>
+            <td style = "border-bottom: 0.5px solid #000;"><b>{{$data->referralTime}}</b></td>
          </tr>
+      </table>
+      <br>
+      <table>
          <tr>
-            <td width = "11rem">Contact Number of Hospital: </td>
-            <td style = "border-bottom: 0.5px solid #000;">{{$data->referrerContact}}</td>
+            <td width = "10rem">Referring Hospital or Facility:</td>
+            <td colspan = 3 style= "border-bottom: 0.5px solid #000;"><b>{{$data->referringHospitalDescription}}</b></td>
          </tr>
-         <tr>
-            <td width = "11rem">Referring Physician: </td>
-            <td style = "border-bottom: 0.5px solid #000;">{{$data->referringDoctor}}</td>
+      </table>
+      <table>
+      <tr>
+            <td width = "10rem">Address of Hospital: </td>
+            <td style = "border-bottom: 0.5px solid #000;"><b>{{$data->referringHospitalStreet}}, {{$data->referringHospitalBarangay}}, {{$data->referringHospitalMunicipality}}, {{$data->referringHospitalProvince}}</b></td>
          </tr>
       </table>
       <table>
          <tr>
-            <td height = "2rem"></td>
+            <td width = "10rem">Contact Number of Hospital: </td>
+            <td style = "border-bottom: 0.5px solid #000;"><b>{{$data->referrerContact}}</b></td>
+         </tr>
+      </table>
+      <table>
+         <tr>
+            <td width = "10rem">Referring Physician: </td>
+            <td style = "border-bottom: 0.5px solid #000;"><b>{{$data->referringDoctor}}</b></td>
+            <td width = "10rem">Signature:___________________________ </td>
+
+         </tr>
+      </table>
+      <table>         
+         <tr>
+            <td width = "10rem">Reason for Referral: </td>
+            <td style = "border-bottom: 0.5px solid #000;"><b>{{$data->reasonForReferral}}</b></td>
+         </tr>
+      </table>
+      <table style = "margin-top:.5rem;">
+         <tr>
+            <td height = ".5rem" style="background-color:#E9EAEC;" ></td>
          </tr>
       </table>
       <table>
          <tr>
             <td width = "5rem">Name: </td>
-            <td style = "border-bottom: 0.5px solid #000;">{{$data->lastName}}, {{$data->firstName}} {{$data->middleName}}</td>
-            <td width = "5rem">Age/Gender: </td>
-            <td style = "border-bottom: 0.5px solid #000;">{{$data->Age}}/{{$data->Gender}}</td>
+            <td style = "border-bottom: 0.5px solid #000;"><b>{{$data->lastName}}, {{$data->firstName}} {{$data->middleName}}<</b></td>
          </tr>
          <tr>
             <td width = "5rem">Address: </td>
-            <td style = "border-bottom: 0.5px solid #000;">{{$data->street}}, {{$data->barangayDesc}}, {{$data->municipalityDesc}}, {{$data->provinceDesc}}</td>
+            <td style = "border-bottom: 0.5px solid #000;"><b>{{$data->street}}, {{$data->barangayDesc}}, {{$data->municipalityDesc}}, {{$data->provinceDesc}}</b></td>
+         </tr>
+      </table>
+      <table>
+         <tr>
+         <td width = "8rem">Age/Gender/Civil Status: </td>
+            <td width ="15rem" style = "border-bottom: 0.5px solid #000;"><b>{{$data->Age}}/{{$data->Gender}}/{{$data->civilStatusDesc}}</b></td>
             <td width = "5rem">Contact No: </td>
-            <td style = "border-bottom: 0.5px solid #000;">{{$data->patientContact}}</td>
+            <td style = "border-bottom: 0.5px solid #000;"><b>{{$data->patientContact}}</b></td>
+         </tr>
+      </table>
+      <table style = "margin-top:.5rem;">
+         <tr>
+            <td height = ".5rem" style="background-color:#E9EAEC;" ></td>
+         </tr>
+      </table>
+
+      <table>
+         <tr>
+            <td width = "10rem">Chief Complaint: </td>
+            <td style = "border-bottom: 0.5px solid #000;"><b>{{$data->chiefComplaint}}<b/></td>
          </tr>
       </table>
       <table>
          <tr>
-            <td height = "2rem"></td>
+            <td width = "10rem">Working Impression: </td>
+            <td  style = "padding-bottom: -.1rem; border-bottom: 0.2px solid #000;"><b>{{$data->impression}}</b></td>
          </tr>
       </table>
       <table>
          <tr>
-            <td width = "9rem">Date of Referral: </td>
-            <td style = "border-bottom: 0.5px solid #000;">{{$data->referralDate}}</td>
-            <td width = "9rem">Time of Referral: </td>
-            <td style = "border-bottom: 0.5px solid #000;">{{$data->referralTime}}</td>
+            <td width = "10rem">Pertinent History: </td>
+            <td  style = "padding-bottom: -.1rem; border-bottom: 0.2px solid #000;"><b>{{$data->history}}</b></td>
          </tr>
       </table>
       <table>
          <tr>
-            <td width = "9rem">Chief Complaint: </td>
-            <td style = "border-bottom: 0.5px solid #000;">{{$data->chiefComplaint}}</td>
+            <td width = "10rem">Pertinent P.E: </td>
+            <td  style = "padding-bottom: -.1rem; border-bottom: 0.2px solid #000;"><b>{{$data->examinationFindings}}</b></td>
          </tr>
       </table>
       <table>
          <tr>
-            <td width = "9rem">Working Impression: </td>
-            <td  style = "padding-bottom: -.1rem; border-bottom: 0.2px solid #000;">{{$data->impression}}</td>
+            <td style = "text-align: left;"width = "10rem">Significant Course in the ER/Ward: </td>
+            <td  style = "padding-bottom: -.1rem; border-bottom: 0.2px solid #000;"><b>{{$data->diagnosticsDone}}</b></td>
          </tr>
       </table>
       <table>
          <tr>
-            <td width = "9rem">Reason for Referral: </td>
-            <td style = "border-bottom: 0.5px solid #000;">{{$data->reasonForReferral}}</td>
+            <td style = "text-align: left;"width = "10rem">Medications Given: (Indicate last dose)</td>
+            <td  style = "padding-bottom: -.1rem; border-bottom: 0.2px solid #000;"><b>{{$data->medicalInterventions}}</b></td>
          </tr>
       </table>
       <table>
          <tr>
-            <td width = "9rem">Intended Department: </td>
-            <td style = "border-bottom: 0.5px solid #000;">{{$data->assignedDepartment}}</td>
-         </tr>
-      </table>
-      <table>
-         <tr>
-            <td width = "9rem">Pertinent History: </td>
-            <td  style = "padding-bottom: -.1rem; border-bottom: 0.2px solid #000;">{{$data->history}}</td>
-         </tr>
-      </table>
-      <table>
-         <tr>
-            <td width = "9rem">Pertinent P.E: </td>
-            <td  style = "padding-bottom: -.1rem; border-bottom: 0.2px solid #000;">{{$data->examinationFindings}}</td>
-         </tr>
-      </table>
-      <table>
-         <tr>
-            <td style = "text-align: left;"width = "9rem">Diagnostics Done: (Attach as needed)</td>
-            <td  style = "padding-bottom: -.1rem; border-bottom: 0.2px solid #000;">{{$data->diagnosticsDone}}</td>
-         </tr>
-      </table>
-      <table>
-         <tr>
-            <td style = "text-align: left;"width = "9rem">Medications Given: (Indicate last dose)</td>
-            <td  style = "padding-bottom: -.1rem; border-bottom: 0.2px solid #000;">{{$data->medicalInterventions}}</td>
-         </tr>
-      </table>
-      <table>
-         <tr>
-            <td style = "text-align: left;"width = "9rem">Procedure: </td>
-            <td  style = "padding-bottom: -.1rem; border-bottom: 0.2px solid #000;">{{$data->courseInTheWard}}</td>
+            <td style = "text-align: left;"width = "10rem">Procedure: </td>
+            <td  style = "padding-bottom: -.1rem; border-bottom: 0.2px solid #000;"><b>{{$data->courseInTheWard}}</b></td>
          </tr>
       </table>
       <table>
          <tr>
             <td rowspan = "2" style = "text-align: left;"width = "9rem">Vital Signs Prior to Transfer: </td>
-            <td width = "2rem">BP</td>
+            <td width = "2rem">Weight</td>
+            <td  style = "padding-bottom: -.1rem; border-bottom: 0.2px solid #000; text-align: center;"><b>{{$data->weight}}kg</b></td>
+            <td width = "2rem">Height</td>
+            <td  style = "padding-bottom: -.1rem; border-bottom: 0.2px solid #000; text-align: center;"><b>{{$data->height}}cm</b></td>
+            <td width = "1rem">BP</td>
             <td  style = "padding-bottom: -.1rem; border-bottom: 0.2px solid #000; text-align: center;"><b>{{$data->systolic}}/{{$data->diastolic}}</b></td>
             <td width = "2rem">CR</td>
             <td  style = "padding-bottom: -.1rem; border-bottom: 0.2px solid #000; text-align: center;"><b>{{$data->cardiacRate}}</b></td>
@@ -219,14 +230,28 @@
             <td width = "1rem">V</td>
             <td  style = "padding-bottom: -.1rem; border-bottom: 0.2px solid #000; text-align: center;"><b>{{$data->v}}</b></td>
             <td width = "1rem">M</td>
-            <td  style = "padding-bottom: -.1rem; border-bottom: 0.2px solid #000; text-align: center;"></b>{{$data->m}}</b></td>
+            <td  style = "padding-bottom: -.1rem; border-bottom: 0.2px solid #000; text-align: center;"><b>{{$data->m}}</b></td>
             <td width = "1rem">GCS</td>
-            10d>
+            <td  style = "padding-bottom: -.1rem; border-bottom: 0.2px solid #000; text-align: center;"><b>{{$data->gcs}}</b></td>
+         </tr>
+      </table>
+      <table style = "margin-top:.5rem;">
+         <tr>
+            <td height = ".5rem" style="background-color:#E9EAEC;" ></td>
          </tr>
       </table>
       <table>
          <tr>
-            <td height = "1rem"></td>
+            <td width = "8rem">Receiving Department: </td>
+            <td colspan = 2 style = "border-bottom: 0.5px solid #000;"><b>{{$data->serviceType}}</b></td>
+         </tr>
+      </table>
+      <table>
+      <tr>
+            <td width = "7rem">Receiving Physician: </td>
+            <td  width = "20rem" style = "border-bottom: 0.5px solid #000;"><b>{{$data->doctorName}}</b></td>
+            <td width = "2rem">Signature: </td>
+            <td style = "border-bottom: 0.5px solid #000;"></td>
          </tr>
       </table>
       <table>
@@ -237,8 +262,8 @@
             <td height = "2rem" style = "font-size: 1rem; font-style: italic; text-align:center;">Sa JBLMGH: “Serbisyong may Lingap, Husay at Malasakit”</td>
          </tr>
          <tr>
-            <td height = "2rem" style = "font-size: 1rem; font-style: italic; text-align:center;"></td>
-            <img src="data:image/png;base64,{{ base64_encode(file_get_contents($cpgLogo)) }}" width='60px' height='30px'>
+            <td height = "2rem" style = "font-size: 1rem; font-style: italic; text-align:center;"> <img src="data:image/png;base64,{{ base64_encode(file_get_contents($cpgLogo)) }}" width='60px' height='30px'></td>
+           
          </tr>
          <tr>
             <td height = "2rem" style = "font-size: 1rem; font-style: italic; text-align:center;"><b>ISO CERTIFIED HOSPITAL- QUALITY MANAGEMENT SYSTEM</b><br><p style = "font-size: 0.6rem;"><i>This document is a property of <b>JOSE B. LINGAD MEMORIAL GENERAL HOSPITAL</b> and the content are treated confidential therefore, unauthorized reproduction is strictly prohibited unless otherwise permitted by JBLMGH Top Management.</i></p></td>
