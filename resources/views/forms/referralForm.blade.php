@@ -10,13 +10,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Interhospital Referral Form</title>
     <style>
+      body{
+         font-family:Arial, Helvetica, sans-serif;
+      }
          .footer {
          position: fixed;
          left: 20;
          bottom: 10;
          width: 100%;
          text-align: center;
-         font-size: 12px;
+         font-size: 10px;
          }
          table {
          width: 100%;
@@ -24,9 +27,8 @@
          td{
          vertical-align: center;
          padding-top: 0.3rem;
-         font-size: 12px;
+         font-size: 10px;
          text-align: justify;
-         font-family:'Times New Roman', Times, serif;
          }
          .underlined{
             text-decoration:underline
@@ -87,10 +89,10 @@
       </div>
       <table>
          <tr>
-            <td width = "9rem">Date of Referral: </td>
-            <td style = "border-bottom: 0.5px solid #000;"><b>{{$data->referralDate}}</b></td>
-            <td width = "9rem">Time of Referral: </td>
-            <td style = "border-bottom: 0.5px solid #000;"><b>{{$data->referralTime}}</b></td>
+            <td width = "5rem">Date of Referral: </td>
+            <td><b>{{$data->referralDate}}</b></td>
+            <td width = "5rem">Time of Referral: </td>
+            <td><b>{{$data->referralTime}}</b></td>
          </tr>
       </table>
       <br>
@@ -181,25 +183,32 @@
       </table>
       <table>
          <tr>
-            <td style = "text-align: left;"width = "10rem">Significant Course in the ER/Ward: </td>
-            <td  style = "padding-bottom: -.1rem; border-bottom: 0.2px solid #000;"><b>{{$data->diagnosticsDone}}</b></td>
+            <td style = "text-align: left;"width = "10rem">Pertinent Laboratories: </td>
+            <td  style = "padding-bottom: -.1rem; border-bottom: 0.2px solid #000;"><b>{{$data->laboratories}}</b></td>
          </tr>
       </table>
       <table>
          <tr>
-            <td style = "text-align: left;"width = "10rem">Medications Given: (Indicate last dose)</td>
+            <td style = "text-align: left;"width = "10rem">Pertinent Imaging: </td>
+            <td  style = "padding-bottom: -.1rem; border-bottom: 0.2px solid #000;"><b>{{$data->imaging}}</b></td>
+         </tr>
+      </table>
+      <table>
+         <tr>
+            <td style = "text-align: left;"width = "10rem">Medical Interventions</td>
             <td  style = "padding-bottom: -.1rem; border-bottom: 0.2px solid #000;"><b>{{$data->medicalInterventions}}</b></td>
          </tr>
       </table>
       <table>
          <tr>
-            <td style = "text-align: left;"width = "10rem">Procedure: </td>
+            <td style = "text-align: left;"width = "10rem">Significant Course in the ER/Ward: </td>
             <td  style = "padding-bottom: -.1rem; border-bottom: 0.2px solid #000;"><b>{{$data->courseInTheWard}}</b></td>
          </tr>
       </table>
+
       <table>
          <tr>
-            <td rowspan = "2" style = "text-align: left;"width = "9rem">Vital Signs Prior to Transfer: </td>
+            <td rowspan = "2" style = "text-align: left;"width = "9rem">Current Vital Signs: </td>
             <td width = "2rem">Weight</td>
             <td  style = "padding-bottom: -.1rem; border-bottom: 0.2px solid #000; text-align: center;"><b>{{$data->weight}}kg</b></td>
             <td width = "2rem">Height</td>

@@ -75,7 +75,7 @@ class MessageController extends Controller
         $notif->sent_at = $dateTime;
         $notif->save();
 
-        event(new NewNotification($notification, $user_id, 7, $encryptedReferralID, $request->referralID,  $encryptedReferralHistoryID, $sent_to, $date, $time));
+        event(new NewNotification($notification, $user_id, 7, $encryptedReferralID, $request->referralID,  $encryptedReferralHistoryID, $sent_to, $date, $time, $request->safru));
 
         return response()->json([], 200);
     }
