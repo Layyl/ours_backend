@@ -114,6 +114,21 @@ class AuthenticationController extends Controller
     public function fetchNotifications(Request $request){
         $user_id = $request->input('user_id');
         $notifications = Notifications::where('sent_to', $user_id)
+        ->where('notificationType', '<>', 7)
+        ->orderBy('sent_at', 'desc')
+        ->get()
+        ->map(function ($notification) {
+            $notification->formatted_timestamp = Carbon::parse($notification->sent_at)->format('F j, Y h:i A'); 
+            return $notification; 
+        });
+
+        return response()->json(["notifications" => $notifications, "message" => "Success"], 200);
+    }
+
+    public function fetchMessageNotifications(Request $request){
+        $user_id = $request->input('user_id');
+        $notifications = Notifications::where('sent_to', $user_id)
+        ->where('notificationType', 7)
         ->orderBy('sent_at', 'desc')
         ->get()
         ->map(function ($notification) {

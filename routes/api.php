@@ -71,6 +71,7 @@ Route::middleware('auth:sanctum')->group(function(){
     Route::controller(AuthenticationController::class)->group(function(){
         Route::get('fetchUsers','fetchUsers');
         Route::get('fetchNotifications','fetchNotifications');
+        Route::get('fetchMessageNotifications','fetchMessageNotifications');
         Route::post('logout','logout');
         Route::post('createAccount','createAccount');
         Route::post('updatePassword','updatePassword');

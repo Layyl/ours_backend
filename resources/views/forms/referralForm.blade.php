@@ -146,7 +146,7 @@
       <table>
          <tr>
          <td width = "8rem">Age/Gender/Civil Status: </td>
-            <td width ="15rem" style = "border-bottom: 0.5px solid #000;"><b>{{$data->Age}}/{{$data->Gender}}/{{$data->civilStatusDesc}}</b></td>
+            <td width ="15rem" style = "border-bottom: 0.5px solid #000;"><b>{{$data->Age}} / {{$data->Gender}} / {{$data->civilStatusDesc}}</b></td>
             <td width = "5rem">Contact No: </td>
             <td style = "border-bottom: 0.5px solid #000;"><b>{{$data->patientContact}}</b></td>
          </tr>
@@ -213,7 +213,7 @@
             <td  style = "padding-bottom: -.1rem; border-bottom: 0.2px solid #000; text-align: center;"><b>{{$data->weight}}kg</b></td>
             <td width = "2rem">Height</td>
             <td  style = "padding-bottom: -.1rem; border-bottom: 0.2px solid #000; text-align: center;"><b>{{$data->height}}cm</b></td>
-            <td width = "1rem">BP</td>
+            <td width = "10px">BP</td>
             <td  style = "padding-bottom: -.1rem; border-bottom: 0.2px solid #000; text-align: center;"><b>{{$data->systolic}}/{{$data->diastolic}}</b></td>
             <td width = "2rem">CR</td>
             <td  style = "padding-bottom: -.1rem; border-bottom: 0.2px solid #000; text-align: center;"><b>{{$data->cardiacRate}}</b></td>
