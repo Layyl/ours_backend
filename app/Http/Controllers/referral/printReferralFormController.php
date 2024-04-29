@@ -37,7 +37,7 @@ class printReferralFormController extends Controller
             'pr.*',
             'rr.Description as reasonForReferral',
             'st.serviceType',
-            referralHistory::raw("DATE_FORMAT(pr.created_at, '%b %d, %Y') as referralDate"),
+            referralHistory::raw("DATE_FORMAT(pr.created_at, '%M %d, %Y') as referralDate"),
             referralHistory::raw("DATE_FORMAT(pr.created_at, '%h:%i %p') as referralTime")
         )
         ->leftJoin('patientreferrals as pr', 'patientreferralhistory.referralID', '=', 'pr.referralID')
@@ -112,10 +112,24 @@ class printReferralFormController extends Controller
 
         $givenDateTime = $data->birthDate;
         $diff = $this->getDateDifference($givenDateTime);
+        $ageString = '';
+        
         $years = $diff->y;
+        if ($years > 0) {
+            $ageString .= $years . ' YRS ';
+        }
+        
         $months = $diff->m;
+        if ($months > 0 || $ageString !== '') {
+            $ageString .= $months . ' MTHS ';
+        }
+        
         $days = $diff->d;
-        $data->Age = $years. ' YRS ' . $months . ' MTHS ' . $days . ' DYS';
+        if ($days > 0 || $ageString !== '') {
+            $ageString .= $days . ' DYS ';
+        }
+        
+        $data->Age = trim($ageString);
         $data->Gender = ($gender == 1) ? 'MALE' : 'FEMALE';
         $html = view('forms.referralForm', ['data' => $data])->render();
         $dompdf = new DomPDF(['paper' => 'A4', 'orientation' => 'portrait']);

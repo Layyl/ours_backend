@@ -281,10 +281,25 @@ class patientController extends Controller{
             foreach ($referrals as $referral) {
                 $givenDateTime = $referral->birthDate;
                 $diff = $this->getDateDifference($givenDateTime);
+                $ageString = '';
+                
                 $years = $diff->y;
+                if ($years > 0) {
+                    $ageString .= $years . ' YRS ';
+                }
+                
                 $months = $diff->m;
+                if ($months > 0 || $ageString !== '') {
+                    $ageString .= $months . ' MTHS ';
+                }
+                
                 $days = $diff->d;
-                $referral->Age = $years. ' YRS ' . $months . ' MTHS ' . $days . ' DYS';
+                if ($days > 0 || $ageString !== '') {
+                    $ageString .= $days . ' DYS ';
+                }
+                
+                $referral->Age = trim($ageString);
+                
                 $referral->encryptedReferralID = Crypt::encrypt($referral->referralID);
                 $referral->encryptedReferralHistoryID = Crypt::encrypt($referral->referralHistoryID);
             }
@@ -328,10 +343,24 @@ class patientController extends Controller{
             foreach ($patientReferrals as $referral) {
                 $givenDateTime = $referral->birthDate;
                 $diff = $this->getDateDifference($givenDateTime);
+                $ageString = '';
+                
                 $years = $diff->y;
+                if ($years > 0) {
+                    $ageString .= $years . ' YRS ';
+                }
+                
                 $months = $diff->m;
+                if ($months > 0 || $ageString !== '') {
+                    $ageString .= $months . ' MTHS ';
+                }
+                
                 $days = $diff->d;
-                $referral->Age = $years. ' YRS ' . $months . ' MTHS ' . $days . ' DYS';
+                if ($days > 0 || $ageString !== '') {
+                    $ageString .= $days . ' DYS ';
+                }
+                
+                $referral->Age = trim($ageString);
                 $referralHistories = referralHistory::where('patientreferralhistory.referralID', $referral->referralID)
                 ->leftJoin('patientreferrals', 'patientreferralhistory.referralID', '=', 'patientreferrals.referralID')
                 ->leftJoin('activefacilities as receivingHospitalInst', 'patientreferralhistory.receivingHospital', '=', 'receivingHospitalInst.HealthFacilityCodeShort')
