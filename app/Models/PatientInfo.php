@@ -7,6 +7,6 @@ use Illuminate\Database\Eloquent\Model;
 
 class PatientInfo extends Model
 {
-    protected $table = 'PatientInfo';
+    protected $table = 'ZPatientInfo';
     protected $connection = 'sqlsrv';
 }

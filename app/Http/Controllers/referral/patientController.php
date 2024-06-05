@@ -13,6 +13,9 @@ use App\Models\referral\municipality;
 use App\Models\referral\Nationality;
 use App\Models\referral\Notifications;
 use App\Models\referral\patients;
+use App\Models\referral\patientHistory;
+use App\Models\PatientInfo;
+use App\Models\referral\Rooms;
 use App\Models\referral\province;
 use App\Models\referral\referralHistory;
 use App\Models\referral\ReferralReasons;
@@ -23,7 +26,6 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-
 date_default_timezone_set('Asia/Manila');
 
 class patientController extends Controller{
@@ -245,6 +247,7 @@ class patientController extends Controller{
         $lastName = $request->input('lastName');
         $firstName = $request->input('firstName');
         $middleName = $request->input('middleName');
+        $department = $request->input('department');
         $referralID = $request->input('referralID');
         $limit = $request->input('limit');
     
@@ -253,11 +256,89 @@ class patientController extends Controller{
             ->whereBetween('patientreferralhistory.created_at', [now()->subDays(1), now()])
             ->where('pr.status','1')
             ->leftJoin('patientreferrals as pr', 'patientreferralhistory.referralID', '=', 'pr.referralID')
+            ->leftJoin('servicetypes as st', 'pr.receivingDepartment', '=', 'st.serviceTypeID')
             ->leftJoin('activefacilities as referringHospitalInst', 'pr.referringHospital', '=', 'referringHospitalInst.HealthFacilityCodeShort')
             ->leftJoin('activefacilities as receivingHospitalInst', 'patientreferralhistory.receivingHospital', '=', 'receivingHospitalInst.HealthFacilityCodeShort')
             ->selectRaw("CONCAT_WS(' ', pr.firstName, pr.middleName, pr.lastName, pr.suffix) as fullName")
-            ->addSelect('patientreferralhistory.*','referringHospitalInst.FacilityName as referringHospitalDescription', 'receivingHospitalInst.FacilityName as receivingHospitalDescription', 'pr.*')          
-            ->selectRaw("DATE_FORMAT(pr.created_at, '%b %d, %Y %h:%i %p') as formatted_created_at")
+            ->addSelect('patientreferralhistory.*','referringHospitalInst.FacilityName as referringHospitalDescription', 'receivingHospitalInst.FacilityName as receivingHospitalDescription', 'pr.*', 'st.serviceType as serviceType')          
+            ->selectRaw("DATE_FORMAT(patientreferralhistory.created_at, '%b %d, %Y %h:%i %p') as formatted_created_at")
+            ->orderBy('patientreferralhistory.created_at','desc');
+            if ($referralID) {
+                $query->where('pr.referralID', $referralID);
+            } else {
+                if ($lastName) {
+                    $query->where('p.lastName', 'like', '%' . $lastName . '%');
+                }
+                if ($firstName) {
+                    $query->where('p.firstName', 'like', '%' . $firstName . '%');
+                }
+                if ($middleName) {
+                    $query->where('p.middleName', 'like', '%' . $middleName . '%');
+                }
+                if ($department) {
+                    $query->where('pr.receivingDepartment', 'like', '%' . $department . '%');
+                }
+            }
+        
+            if ($limit) {
+                $query->limit($limit);
+            }
+        
+            $referrals = $query->get();
+            foreach ($referrals as $referral) {
+                $givenDateTime = $referral->birthDate;
+                $diff = $this->getDateDifference($givenDateTime);
+                $ageString = '';
+                
+                $years = $diff->y;
+                if ($years > 0) {
+                    $ageString .= $years . ' YRS ';
+                }
+                
+                $months = $diff->m;
+                if ($months > 0 || $ageString !== '') {
+                    $ageString .= $months . ' MTHS ';
+                }
+                
+                $days = $diff->d;
+                if ($days > 0 || $ageString !== '') {
+                    $ageString .= $days . ' DYS ';
+                }
+                
+                $referral->Age = trim($ageString);
+                
+                $referral->encryptedReferralID = Crypt::encrypt($referral->referralID);
+                $referral->encryptedReferralHistoryID = Crypt::encrypt($referral->referralHistoryID);
+            }
+            return response()->json(['referrals' => $referrals], 200);
+    
+    } 
+
+    public function fetchInboundPatientsOB(Request $request){
+
+        $hciID = $request->input('hciID');
+        if (is_null($hciID) || $hciID === '') {
+            return response()->json(['referrals' => []], 200);
+        }
+    
+        $lastName = $request->input('lastName');
+        $firstName = $request->input('firstName');
+        $middleName = $request->input('middleName');
+        $referralID = $request->input('referralID');
+        $limit = $request->input('limit');
+    
+        $query = referralHistory::query()
+            ->where('patientreferralhistory.receivingHospital', '=', $hciID)
+            ->whereBetween('patientreferralhistory.created_at', [now()->subDays(1), now()])
+            ->where('pr.receivingDepartment', 'like', '%2%')
+            ->where('pr.status','1')
+            ->leftJoin('patientreferrals as pr', 'patientreferralhistory.referralID', '=', 'pr.referralID')
+            ->leftJoin('servicetypes as st', 'pr.receivingDepartment', '=', 'st.serviceTypeID')
+            ->leftJoin('activefacilities as referringHospitalInst', 'pr.referringHospital', '=', 'referringHospitalInst.HealthFacilityCodeShort')
+            ->leftJoin('activefacilities as receivingHospitalInst', 'patientreferralhistory.receivingHospital', '=', 'receivingHospitalInst.HealthFacilityCodeShort')
+            ->selectRaw("CONCAT_WS(' ', pr.firstName, pr.middleName, pr.lastName, pr.suffix) as fullName")
+            ->addSelect('patientreferralhistory.*','referringHospitalInst.FacilityName as referringHospitalDescription', 'receivingHospitalInst.FacilityName as receivingHospitalDescription', 'pr.*', 'st.serviceType as serviceType')          
+            ->selectRaw("DATE_FORMAT(patientreferralhistory.created_at, '%b %d, %Y %h:%i %p') as formatted_created_at")
             ->orderBy('patientreferralhistory.created_at','desc');
             if ($referralID) {
                 $query->where('pr.referralID', $referralID);
@@ -427,6 +508,27 @@ class patientController extends Controller{
                 
                 $referral->EncryptedReferralID = Crypt::encrypt($referral->referralID);
                 $referral->referralHistory = $referralHistories;
+
+                $givenDateTime = $referral->birthDate;
+                $diff = $this->getDateDifference($givenDateTime);
+                $ageString = '';
+                
+                $years = $diff->y;
+                if ($years > 0) {
+                    $ageString .= $years . ' YRS ';
+                }
+                
+                $months = $diff->m;
+                if ($months > 0 || $ageString !== '') {
+                    $ageString .= $months . ' MTHS ';
+                }
+                
+                $days = $diff->d;
+                if ($days > 0 || $ageString !== '') {
+                    $ageString .= $days . ' DYS ';
+                }
+                
+                $referral->Age = trim($ageString);
             }
                 return response()->json(['referrals' => $patientReferrals], 200);
         
@@ -466,7 +568,8 @@ class patientController extends Controller{
     public function acceptPatient(Request $request){
         $updateMain = referrals::where("referralID", $request->referralID)
         ->update(['receivingDepartment' => $request->receivingDepartment,
-        'assignedDoctor' => $request->assignedDoctor]);    
+        'assignedDoctor' => $request->assignedDoctor,'secondaryReceivingDepartment' => $request->secondaryReceivingDepartment,
+        'secondaryAssignedDoctor' => $request->secondaryAssignedDoctor]);    
 
         $updateHistory = referralHistory::where("referralHistoryID", $request-> referralHistoryID)
         ->update(['referralStatus'=> 3, 'accepted'=> 1]);
@@ -490,6 +593,13 @@ class patientController extends Controller{
         $notif->save();
 
         event(new NewNotification($notification, $user_id, 1, Crypt::encrypt($request->referralID), $request->referralID, Crypt::encrypt($request->referralHistoryID), $sent_to, $date, $time, ''));
+
+        return response()->json(["message" => "Success"], 200);
+    }
+
+    public function setDepartment(Request $request){
+        $updateMain = referrals::where("referralID", $request->referralID)
+        ->update(['receivingDepartment' => $request->receivingDepartment]);    
 
         return response()->json(["message" => "Success"], 200);
     }
@@ -550,6 +660,34 @@ class patientController extends Controller{
         }else if($request->deferReason == '5'){
         $notification = sprintf("Your Patient %s %s %s has been deferred (Patient Refused Transfer)", $request->firstName, $request->middleName, $request->lastName);
         }
+        $dateTime = Carbon::now();
+        $date = $dateTime->format('F j, Y'); 
+        $time = $dateTime->format('g:i A');
+        
+        $notif = new Notifications();
+        $notif->notification = $notification;
+        $notif->notificationType = 5;
+        $notif->referralID = Crypt::encrypt($request->referralID);
+        $notif->referralHistoryID = Crypt::encrypt($request->referralHistoryID);
+        $notif->user_id = $user->id; 
+        $notif->sent_to = $sent_to;
+        $notif->sent_at = $dateTime;
+        $notif->save();
+        event(new NewNotification($notification, $user_id, 5, Crypt::encrypt($request->referralID), $request->referralID, Crypt::encrypt($request->referralHistoryID), $sent_to, $date, $time, ''));
+
+        return response()->json(["message" => "Success"], 200);
+    }
+
+    public function setToIntransit(Request $request){  
+        $setToInTransit = referrals::where("referralID", $request->referral['referralID'])
+        ->update(['inTransit'=> 1, 'vehicleNumber'=>$request->vehicleNumber,'vehicleType'=>$request->vehicleType, 'eta'=>$request->eta ]);
+
+        $user = Auth::user();
+        $user_id = $user->id;
+        $sent_to = 271;
+        
+    
+        $notification = sprintf("Patient %s %s %s is now ON THE WAY to your facility.", $request->referral['firstName'], $request->referral['middleName'], $request->referral['lastName']);
         $dateTime = Carbon::now();
         $date = $dateTime->format('F j, Y'); 
         $time = $dateTime->format('g:i A');
@@ -641,16 +779,19 @@ class patientController extends Controller{
         $informantContact = (int)preg_replace('/[^0-9]/', '', $request->informantContact);
 
         $referral = referrals::create([
-            "lastName" => $request->lastName,
-            "firstName" => $request->firstName,
-            "middleName" => $request->middleName,
-            "suffix" => $request->suffix,
+            'isSignore' => $request->isSignore,
+            "lastName" => strtoupper($request->lastName),
+            "firstName" => strtoupper($request->firstName),
+            "middleName" => strtoupper($request->middleName),
+            "suffix" => strtoupper($request->suffix),
             "birthDate" => $birthdate,
             "gender" => $request->gender,
+            "isSignore" => $request->isSignore,
             'referringHospital' => $request->referringHospital,
             'referringDoctor' => $request->referringDoctor,
             'referrerContact' => $referrerContact,
             'transferReason' => $request->transferReason,
+            'otherTransferReason' => $request->otherTransferReason,
             'referralRemarks' => $request->referralRemarks,
             'receivingDepartment' => $request->receivingDepartment,
             'assignedDoctor' => $request->assignedDoctor,
@@ -734,10 +875,11 @@ class patientController extends Controller{
         $informantContact = (int)preg_replace('/[^0-9]/', '', $request->informantContact);
 
         $referral = referrals::create([
-            "lastName" => $request->lastName,
-            "firstName" => $request->firstName,
-            "middleName" => $request->middleName,
-            "suffix" => $request->suffix,
+            'isSignore' => $request->isSignore,
+            "lastName" => strtoupper($request->lastName),
+            "firstName" => strtoupper($request->firstName),
+            "middleName" => strtoupper($request->middleName),
+            "suffix" => strtoupper($request->suffix),
             "gender" => $request->gender,
             'referringHospital' => $request->referringHospital,
             'street' => $request->street,
@@ -747,6 +889,7 @@ class patientController extends Controller{
             'impression' => $request->impression,
             'locationOfAccident' => $request->locationOfAccident,
             'typeOfInjury' => $request->typeOfInjury,
+            'isCritical' => $request->isCritical,
             'updatedBy' => $request->updatedBy,
             'safru' => 1,
             'status' => 1,
@@ -859,9 +1002,86 @@ class patientController extends Controller{
 
         event(new NewNotification($notification, $user_id, 2, Crypt::encrypt($request->referralID), $request->referralID, Crypt::encrypt($request->referralHistoryID), $sent_to, $date, $time, ''));
         
+        $user = Auth::user();
+        $user_id = $user->id;
+        $sent_to = 100000;
+        $notification = sprintf("You have a new referral for patient %s %s %s", $request->firstName, $request->middleName, $request->lastName);
+        $dateTime = Carbon::now();
+        $date = $dateTime->format('F j, Y'); 
+        $time = $dateTime->format('g:i A');
+        
+        $notif = new Notifications();
+        $notif->notification = $notification;
+        $notif->notificationType = 12;
+        $notif->referralID = Crypt::encrypt($request->referralID);
+        $notif->referralHistoryID = Crypt::encrypt($request->referralHistoryID);
+        $notif->user_id = $user->id; 
+        $notif->sent_to = $sent_to;
+        $notif->sent_at = $dateTime;
+        $notif->save();
+
+        event(new NewNotification($notification, $user_id, 12, Crypt::encrypt($referralID), $referralID, Crypt::encrypt($referralHistoryID), $sent_to, $date, $time, ''));
+
         return response()->json(["message" => "Referral Created", "referralID" => $referralID], 200);
+    }
 
+    public function transferToJBLMGHOPCEN(Request $request){
 
+        $referralID = $request->referralID;
+        $referralHistoryID = $request->referralHistoryID;
+
+        $update = referralHistory::where("referralHistoryID", $referralHistoryID)
+        ->update(['referralStatus' => 6]);    
+
+        $referralHistory = referralHistory::create([
+            'referralID' => $referralID,
+            'receivingHospital' => 100002,
+            'referralStatus' => 1,
+        ]);
+    
+        $referralID = $referralHistory->id;
+        
+        $user = Auth::user();
+        $user_id = $user->id;
+        $sent_to = $request->referringHospital;
+        $notification = sprintf("Your Patient %s %s %s has been referred to OPCEN", $request->firstName, $request->middleName, $request->lastName);
+        $dateTime = Carbon::now();
+        $date = $dateTime->format('F j, Y'); 
+        $time = $dateTime->format('g:i A');
+        
+        $notif = new Notifications();
+        $notif->notification = $notification;
+        $notif->notificationType = 2;
+        $notif->referralID = Crypt::encrypt($request->referralID);
+        $notif->referralHistoryID = Crypt::encrypt($request->referralHistoryID);
+        $notif->user_id = $user->id; 
+        $notif->sent_to = $sent_to;
+        $notif->sent_at = $dateTime;
+        $notif->save();
+
+        event(new NewNotification($notification, $user_id, 2, Crypt::encrypt($request->referralID), $request->referralID, Crypt::encrypt($request->referralHistoryID), $sent_to, $date, $time, ''));
+        
+        $user = Auth::user();
+        $user_id = $user->id;
+        $sent_to = 100002;
+        $notification = sprintf("You have a new referral for patient %s %s %s", $request->firstName, $request->middleName, $request->lastName);
+        $dateTime = Carbon::now();
+        $date = $dateTime->format('F j, Y'); 
+        $time = $dateTime->format('g:i A');
+        
+        $notif = new Notifications();
+        $notif->notification = $notification;
+        $notif->notificationType = 12;
+        $notif->referralID = Crypt::encrypt($request->referralID);
+        $notif->referralHistoryID = Crypt::encrypt($request->referralHistoryID);
+        $notif->user_id = $user->id; 
+        $notif->sent_to = $sent_to;
+        $notif->sent_at = $dateTime;
+        $notif->save();
+
+        event(new NewNotification($notification, $user_id, 12, Crypt::encrypt($referralID), $referralID, Crypt::encrypt($referralHistoryID), $sent_to, $date, $time, ''));
+
+        return response()->json(["message" => "Referral Created", "referralID" => $referralID], 200);
     }
 
     public function returnToJBLMGH(Request $request){
@@ -899,7 +1119,26 @@ class patientController extends Controller{
         $notif->save();
 
         event(new NewNotification($notification, $user_id, 9, Crypt::encrypt($request->referralID), $request->referralID, Crypt::encrypt($request->referralHistoryID), $sent_to, $date, $time, ''));
+       
+        $user = Auth::user();
+        $user_id = $user->id;
+        $sent_to = 271;
+        $notification = sprintf("Referral for patient %s %s %s has been returned to JBLMGH", $request->firstName, $request->middleName, $request->lastName);
+        $dateTime = Carbon::now();
+        $date = $dateTime->format('F j, Y'); 
+        $time = $dateTime->format('g:i A');
         
+        $notif = new Notifications();
+        $notif->notification = $notification;
+        $notif->notificationType = 9;
+        $notif->referralID = Crypt::encrypt($request->referralID);
+        $notif->referralHistoryID = Crypt::encrypt($request->referralHistoryID);
+        $notif->user_id = $user->id; 
+        $notif->sent_to = $sent_to;
+        $notif->sent_at = $dateTime;
+        $notif->save();
+
+        event(new NewNotification($notification, $user_id, 9, Crypt::encrypt($referralID), $referralID, Crypt::encrypt($referralHistoryID), $sent_to, $date, $time, ''));
         return response()->json(["message" => "Referral Created", "referralID" => $referralID], 200);
 
 
@@ -990,9 +1229,8 @@ class patientController extends Controller{
         ->join('department', 'payroll.department', '=', 'department.id')
         ->where('payroll.status', 'A')
         ->where(function ($query) {
-            $query->whereBetween('payroll.positionid', [47, 57])
-                ->orWhere('payroll.positionid', 34)
-                ->orWhereBetween('payroll.positionid', [23, 25]);
+            $query
+                ->orWhere('payroll.positionid', 47);
         })
         ->get();
         return $doctors;
@@ -1040,7 +1278,8 @@ class patientController extends Controller{
     }
 
     public function fetchServiceTypes(Request $request){
-        $data = servicetypes::get();
+        $data = servicetypes::where('ForERPatient', 1)
+        ->get();
         return $data;
     }
    
@@ -1102,4 +1341,365 @@ class patientController extends Controller{
 
         return response()->json(["message" => "Success"], 200);
     }
+
+    public function getDashboardStats(Request $request){
+        try{
+            $data = ServiceTypes::selectRaw("ServiceTypeID,Description")
+                ->whereIn('ServiceTypeID', [1,2,4,9,10,13,28,41,45,22])
+                ->orderBy('Description', 'ASC')
+                ->get();
+        
+                $sum_less = 0;
+                $sum_more = 0;
+                $sum_ac = 0;
+                $sum_new = 0;
+                $sum_fiveHrs = 0;
+                $sum_tenHrs = 0;
+                $sum_twentyHrs = 0;
+                $sum_acu = 0;
+                $sum_total = 0;
+                $sum_totalAdmitted = 0;
+                $sum_grandtotal = 0;
+
+                $data->each(function ($serviceType) use (
+                    &$sum_less, &$sum_more, &$sum_ac, &$sum_new, &$sum_fiveHrs, 
+                    &$sum_tenHrs, &$sum_twentyHrs, &$sum_acu, &$sum_total, 
+                    &$sum_totalAdmitted, &$sum_grandtotal
+                ) {
+                    $departmentTotal = $this->getDepartmentTotal($serviceType->ServiceTypeID);
+                    $totalAdmitted = $this->getTotalAdmitted($serviceType->ServiceTypeID);
+                    $consultDuration = $this->getConsultDuration($serviceType->ServiceTypeID);
+                    $totalER = $this->getTotalER($serviceType->ServiceTypeID);
+                
+                    $serviceType->total = optional($departmentTotal)->total ?? 0;
+                    $serviceType->totalAdmitted = optional($totalAdmitted)->total ?? 0;
+                
+                    $serviceType->less = $consultDuration['less'] ?? 0;
+                    $serviceType->more = $consultDuration['more'] ?? 0;
+                    $serviceType->ac = $consultDuration['ambuCare'] ?? 0;
+                    $serviceType->acu = $totalER['ambuCareUnit'] ?? 0;
+                    $serviceType->new = $totalER['new'] ?? 0;
+                    $serviceType->fiveHrs = $totalER['fiveHrs'] ?? 0;
+                    $serviceType->tenHrs = $totalER['tenHrs'] ?? 0;
+                    $serviceType->twentyHrs = $totalER['twentyHrs'] ?? 0;
+                
+                    $serviceType->depTotal = $serviceType->total + $serviceType->totalAdmitted;
+                
+                    $sum_less += $serviceType->less;
+                    $sum_more += $serviceType->more;
+                    $sum_ac += $serviceType->ac;
+                    $sum_new += $serviceType->new;
+                    $sum_fiveHrs += $serviceType->fiveHrs;
+                    $sum_tenHrs += $serviceType->tenHrs;
+                    $sum_twentyHrs += $serviceType->twentyHrs;
+                    $sum_acu += $serviceType->acu;
+                    $sum_total += $serviceType->total;
+                    $sum_totalAdmitted += $serviceType->totalAdmitted;
+                    $sum_grandtotal += ($serviceType->total + $serviceType->totalAdmitted);
+                });
+                
+                $totalData = [
+                    'data' => $data->map(function($d){
+                        return [
+                            'id' => $d->ServiceTypeID,
+                            'department' => $d->Description,
+                            'totalpatient' => $d->depTotal,
+                            'consultation' => [
+                                'lessthan4hrs' => $d->less,
+                                'morethan4hrs' => $d->more,
+                                'ambucare' => $d->ac,
+                                'total' => $d->total
+                            ],
+                            'admission' => [
+                                'newlyadmitted' => $d->new,
+                                'five_hrs' => $d->fiveHrs,
+                                'ten_hrs' => $d->tenHrs,
+                                'twenty_hrs' => $d->twentyHrs,
+                                'ambucareunit' => $d->acu,
+                                'total' => $d->totalAdmitted
+                            ]
+                        ];
+                    })->toArray(),
+                    'sum_lessthan4hrs' => $sum_less,
+                    'sum_morethan4hrs' => $sum_more,
+                    'sum_ambucare' => $sum_ac,
+                    'sum_newlyadmitted' => $sum_new,
+                    'sum_5hrs' => $sum_fiveHrs,
+                    'sum_10hrs' => $sum_tenHrs,
+                    'sum_20hrs' => $sum_twentyHrs,
+                    'sum_ambucareunit' => $sum_acu,
+                    'sum_totalconsultation' => $sum_total,
+                    'sum_totaladmission' => $sum_totalAdmitted,
+                    'sum_grandtotal' => $sum_grandtotal
+                ];
+                
+                // Adding the summary row
+                $totalData['data'][] = [
+                    'id' => null,
+                    'department' => 'Total',
+                    'totalpatient' => $totalData['sum_grandtotal'],
+                    'consultation' => [
+                        'lessthan4hrs' => $totalData['sum_lessthan4hrs'],
+                        'morethan4hrs' => $totalData['sum_morethan4hrs'],
+                        'ambucare' => $totalData['sum_ambucare'],
+                        'total' => $totalData['sum_totalconsultation']
+                    ],
+                    'admission' => [
+                        'newlyadmitted' => $totalData['sum_newlyadmitted'],
+                        'five_hrs' => $totalData['sum_5hrs'],
+                        'ten_hrs' => $totalData['sum_10hrs'],
+                        'twenty_hrs' => $totalData['sum_20hrs'],
+                        'ambucareunit' => $totalData['sum_ambucareunit'],
+                        'total' => $totalData['sum_totaladmission']
+                    ]
+                ];
+                
+
+            if(!$data){
+                return response()->json(['message' => 'No result found', 'status' => 404]);
+            }
+            return response()->json($totalData);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'An error occurred', 'error' => $e->getMessage(), 'status' => 500]);
+        }
+    }
+
+    private function getDepartmentTotal($ServiceTypeID){
+        try{
+            $data = patientHistory::join('Patients AS PAT', 'PatientHistory.PatientID', '=', 'PAT.PatientID')
+                    ->join('Persons AS PER', 'PAT.PersonID', '=', 'PER.PersonID')
+                    ->leftJoin('Admissions AS AD', 'PatientHistory.AdmissionID', '=', 'AD.AdmissionID')
+                    ->leftJoin('AdmissionsOPD AS ADOPD', 'PatientHistory.AdmissionOPDID', '=', 'ADOPD.AdmissionID')
+                    ->leftJoin('ServiceTypes AS SAD', 'AD.ServiceTypeID', '=', 'SAD.ServiceTypeID')
+                    ->leftJoin('ServiceTypes AS SADOPD', 'ADOPD.ServiceTypeID', '=', 'SADOPD.ServiceTypeID')
+                    ->join('PatientInfo AS pain', 'PatientHistory.PatientHistoryID', '=', 'pain.PatientHistoryID')
+                    ->join('Users AS u', 'PatientHistory.UserID', '=', 'u.UserID')
+                    ->join('Persons AS uper', 'u.PersonID', '=', 'uper.PersonID')
+                    ->selectRaw("
+                        count(PatientHistory.PatientHistoryID) as total
+                    ")
+                    ->where('PatientHistory.PatientTypeID', 4)
+                    ->whereNotIn('PatientHistory.PatientStatusID', [6, 7, 8, 9, 10, 11, 13, 12, 18])
+                    ->whereRaw('CAST(PatientHistory.TransactionDateTime AS DATE) between dateadd(DD, -20,CAST(GETDATE() AS DATE)) and CAST(GETDATE() AS DATE)')
+                    ->where(function($query){
+                        $query->whereNotNull('PatientHistory.AdmissionID')
+                            ->orWhereNotNull('PatientHistory.AdmissionOPDID');
+                    })
+                    ->where(function($query){
+                        $query->whereNull('PatientHistory.SetToInPatient')
+                            ->orWhere('PatientHistory.SetToInPatient', 0);
+                    })
+                    ->where('PatientHistory.Status', 1)
+                    ->where('SADOPD.ServiceTypeID', $ServiceTypeID)
+                    ->groupByRaw('CASE PatientHistory.PatientTypeID WHEN 1 THEN SAD.[Description] ELSE SADOPD.[Description] END')
+                    ->first();
+                
+            if(!$data){
+                return false;
+            }
+            
+            return $data;
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'An error occurred', 'error' => $e->getMessage(), 'status' => 500]);
+        } 
+    }
+
+    private function getConsultDuration($ServiceTypeID){
+        try{
+            $data = PatientHistory::join('Patients AS PAT', 'PatientHistory.PatientID', '=', 'PAT.PatientID')
+            ->join('Persons AS PER', 'PAT.PersonID', '=', 'PER.PersonID')
+            ->leftJoin('Admissions AS AD', 'PatientHistory.AdmissionID', '=', 'AD.AdmissionID')
+            ->leftJoin('AdmissionsOPD AS ADOPD', 'PatientHistory.AdmissionOPDID', '=', 'ADOPD.AdmissionID')
+            ->leftJoin('ServiceTypes AS SAD', 'AD.ServiceTypeID', '=', 'SAD.ServiceTypeID')
+            ->leftJoin('ServiceTypes AS SADOPD', 'ADOPD.ServiceTypeID', '=', 'SADOPD.ServiceTypeID')
+            ->join('PatientInfo AS pain', 'PatientHistory.PatientHistoryID', '=', 'pain.PatientHistoryID')
+            ->join('Users AS u', 'PatientHistory.UserID', '=', 'u.UserID')
+            ->join('Persons AS uper', 'u.PersonID', '=', 'uper.PersonID')
+            ->selectRaw("
+                DATEDIFF(minute, PatientHistory.TransactionDateTime, GETDATE()) AS HoursNumber,
+                CASE PatientHistory.PatientTypeID WHEN 1 THEN SAD.[Description] ELSE SADOPD.[Description] END AS Department,
+                PatientHistory.PatientHistoryID
+            ")
+            ->where('PatientHistory.PatientTypeID', 4)
+            ->whereNotIn('PatientHistory.PatientStatusID', [6, 7, 8, 9, 10, 11, 13, 12, 18])
+            ->whereRaw('CAST(PatientHistory.TransactionDateTime AS DATE) between dateadd(DD, -20,CAST(GETDATE() AS DATE)) and CAST(GETDATE() AS DATE)')
+            ->where(function($query){
+                $query->whereNotNull('PatientHistory.AdmissionID')
+                    ->orWhereNotNull('PatientHistory.AdmissionOPDID');
+            })
+            ->where(function($query){
+                $query->whereNull('PatientHistory.SetToInPatient')
+                    ->orWhere('PatientHistory.SetToInPatient', 0);
+            })
+            ->where('PatientHistory.Status', 1)
+            ->where('SADOPD.ServiceTypeID', $ServiceTypeID)
+            ->get();
+                
+            if(!$data){
+                return false;
+            }
+
+            $less4hrs = 0;
+            $more4hrs = 0;
+            $ambuCareCount = 0;
+            
+            $data->each(function($d) use (&$less4hrs, &$more4hrs, &$ambuCareCount){
+                $ambuCare = PatientInfo::selectRaw("COUNT(PatientHistoryID) AS count")
+                ->where('PatientHistoryID', $d->PatientHistoryID)
+                ->where('ward', 5)
+                ->first();
+
+                if($ambuCare->count > 0){
+                    $ambuCareCount++;
+                }
+                if($d->HoursNumber > 240){
+                    $more4hrs++;
+                } else{
+                    $less4hrs++;
+                }
+            });
+
+            
+
+            return ["less" => $less4hrs, "more" => $more4hrs, 'ambuCare' => $ambuCareCount];
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'An error occurred', 'error' => $e->getMessage(), 'status' => 500]);
+        } 
+    }
+    
+    private function getTotalAdmitted($ServiceTypeID){
+        try{
+            $ServiceTypeID = $ServiceTypeID == 45 ? 6 : $ServiceTypeID;
+
+            $data = PatientHistory::join('Patients AS PAT', 'PatientHistory.PatientID', '=', 'PAT.PatientID')
+            ->join('Persons AS PER', 'PAT.PersonID', '=', 'PER.PersonID')
+            ->leftJoin('Admissions AS AD', 'PatientHistory.AdmissionID', '=', 'AD.AdmissionID')
+            ->leftJoin('ServiceTypes AS SAD', 'AD.ServiceTypeID', '=', 'SAD.ServiceTypeID')
+            ->join('PatientInfo AS pain', 'PatientHistory.PatientHistoryID', '=', 'pain.PatientHistoryID')
+            ->join('Users AS u', 'PatientHistory.UserID', '=', 'u.UserID')
+            ->join('Persons AS uper', 'u.PersonID', '=', 'uper.PersonID')
+            ->leftJoin('PatientHistory AS pher', 'PatientHistory.PatientHistoryID', '=', 'pher.outpatienthistoryid')
+            ->leftJoin('AdmissionsOPD AS ADOPD', 'pher.AdmissionOPDID', '=', 'ADOPD.AdmissionID')
+            ->selectRaw("
+                COUNT(PatientHistory.PatientHistoryID) as total
+            ")
+            ->where('PatientHistory.PatientTypeID', 1)
+            ->where('pher.PatientTypeID', 4)
+            ->whereNotIn('PatientHistory.PatientStatusID', [6, 7, 8, 9, 10, 11, 13, 12])
+            ->whereRaw('CAST(PatientHistory.TransactionDateTime AS DATE) between dateadd(DD, -10,CAST(GETDATE() AS DATE)) and CAST(GETDATE() AS DATE)')
+            ->where(function($query){
+                $query->whereNotNull('PatientHistory.AdmissionID')
+                    ->orWhereNotNull('PatientHistory.AdmissionOPDID');
+            })
+            ->where(function($query){
+                $query->whereNotIn('SAD.ServiceTypeID', [3,74,75,76])
+                    ->orWhereNull('SAD.ServiceTypeID');
+            })
+            ->where(function($query){
+                $query->whereNull('PatientHistory.SetToInPatient')
+                    ->orWhere('PatientHistory.SetToInPatient', 0);
+            })
+            ->where('PatientHistory.Status', 1)
+            ->where('AD.alert', '!=', '1')
+            ->whereNull('AD.dateofdeath')
+            ->whereNull('PatientHistory.mergedwithid')
+            ->where('SAD.ServiceTypeID', $ServiceTypeID)
+            ->groupByRaw('CASE PatientHistory.PatientTypeID WHEN 1 THEN SAD.Description ELSE SAD.Description END')
+            ->first();
+                
+            if(!$data){
+                return false;
+            }
+
+            return $data;
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'An error occurred', 'error' => $e->getMessage(), 'status' => 500]);
+        }
+    }
+
+    private function getTotalER($ServiceTypeID){
+        try{
+            $ServiceTypeID = $ServiceTypeID == 45 ? 6 : $ServiceTypeID;
+
+            $data = PatientHistory::join('Patients AS PAT', 'PatientHistory.PatientID', '=', 'PAT.PatientID')
+            ->join('Persons AS PER', 'PAT.PersonID', '=', 'PER.PersonID')
+            ->leftJoin('Admissions AS AD', 'PatientHistory.AdmissionID', '=', 'AD.AdmissionID')
+            ->leftJoin('ServiceTypes AS SAD', 'AD.ServiceTypeID', '=', 'SAD.ServiceTypeID')
+            ->join('PatientInfo AS pain', 'PatientHistory.PatientHistoryID', '=', 'pain.PatientHistoryID')
+            ->join('Users AS u', 'PatientHistory.UserID', '=', 'u.UserID')
+            ->join('Persons AS uper', 'u.PersonID', '=', 'uper.PersonID')
+            ->leftJoin('PatientHistory AS pher', 'PatientHistory.PatientHistoryID', '=', 'pher.outpatienthistoryid')
+            ->leftJoin('AdmissionsOPD AS ADOPD', 'pher.AdmissionOPDID', '=', 'ADOPD.AdmissionID')
+            ->selectRaw("
+                DATEDIFF(hh, PatientHistory.TransactionDateTime, GETDATE()) AS totaler,
+                CASE PatientHistory.PatientTypeID WHEN 1 THEN SAD.Description ELSE SAD.Description END AS Department,
+                PatientHistory.PatientHistoryID
+            ")
+            ->where('PatientHistory.PatientTypeID', 1)
+            ->where('pher.PatientTypeID', 4)
+            ->whereNotIn('PatientHistory.PatientStatusID', [6, 7, 8, 9, 10, 11, 13, 12])
+            ->whereRaw('CAST(PatientHistory.TransactionDateTime AS DATE) between dateadd(DD, -10,CAST(GETDATE() AS DATE)) and CAST(GETDATE() AS DATE)')
+            ->where(function($query){
+                $query->whereNotNull('PatientHistory.AdmissionID')
+                    ->orWhereNotNull('PatientHistory.AdmissionOPDID');
+            })
+            ->where(function($query){
+                $query->whereNull('PatientHistory.SetToInPatient')
+                    ->orWhere('PatientHistory.SetToInPatient', 0);
+            })
+            ->where('PatientHistory.Status', 1)
+            ->where('AD.alert', '!=', '1')
+            ->whereNull('AD.dateofdeath')
+            ->whereNull('PatientHistory.mergedwithid')
+            ->where('SAD.ServiceTypeID', $ServiceTypeID)
+            ->get();
+                
+            if(!$data){
+                return false;
+            }
+
+            $new = 0;
+            $fiveHrs = 0;
+            $tenHrs = 0;
+            $twentyHrs = 0;
+            $ambuCareUnitCount = 0;
+
+            $data->each(function($d) use (&$new, &$fiveHrs, &$tenHrs, &$twentyHrs, &$ambuCareUnitCount ){
+               
+                $ambuCareUnit = Rooms::selectRaw("COUNT('rooms.id') AS count")
+                    ->join('patient AS p', 'rooms.id', '=', 'p.roomid')
+                    ->where('rooms.id', 2539)
+                    ->where('p.patienthistoryid', $d->PatientHistoryID)
+                    ->first();
+
+                if($ambuCareUnit->count > 0){
+                    $ambuCareUnitCount++;
+                }
+
+                if($d->totaler >=5 && $d->totaler <=9) {
+                    $fiveHrs++;
+                }
+                elseif($d->totaler >=10 && $d->totaler <=20){
+                    $tenHrs++;
+                }
+                elseif($d->totaler >=20) {
+                    $twentyHrs++;
+                }
+                else {
+                    $new++;
+                }
+            });
+
+            return [
+                'new' => $new,
+                'fiveHrs' => $fiveHrs,
+                'tenHrs' => $tenHrs,
+                'twentyHrs' => $twentyHrs,
+                'ambuCareUnit' => $ambuCareUnitCount,
+            ];
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'An error occurred', 'error' => $e->getMessage(), 'status' => 500]);
+        }
+    }
+
 }

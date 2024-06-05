@@ -252,13 +252,20 @@
       <table>
          <tr>
             <td width = "8rem">Receiving Department: </td>
-            <td colspan = 2 style = "border-bottom: 0.5px solid #000;"><b>{{$data->serviceType}}</b></td>
+            <td colspan = 2 style = "border-bottom: 0.5px solid #000;"><b>{{$data->st1}} @if(!is_null($data->st2))
+         / {{$data->st2}}
+        @endif</b></td>
          </tr>
       </table>
       <table>
       <tr>
             <td width = "7rem">Receiving Physician: </td>
-            <td  width = "20rem" style = "border-bottom: 0.5px solid #000;"><b>{{$data->doctorName}}</b></td>
+            <td  width = "20rem" style = "border-bottom: 0.5px solid #000;">  <b>
+        {{$data->doctorName}}
+        @if(!is_null($data->doctorName2))
+            / {{$data->doctorName2}}
+        @endif
+    </b></td>
             <td width = "2rem">Signature: </td>
             <td style = "border-bottom: 0.5px solid #000;"></td>
          </tr>

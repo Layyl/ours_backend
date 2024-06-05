@@ -45,8 +45,9 @@ class AuthenticationController extends Controller
     
             if (!$user || !Hash::check($credentials['password'], $user->password)) {
                 return response()->json([
+                    'status' => 1,
                     'message' => 'Invalid username or password.',
-                ], 401); // Unauthorized
+                ], 200); // Unauthorized
             }
     
             if (Auth::loginUsingId($user->id)) {
@@ -56,13 +57,10 @@ class AuthenticationController extends Controller
                     'message' => 'User Logged In Successfully',
                     'token' => $token,
                     'user' => $user,
-                    'status' => 200,
+                    'status' => 2,
                 ], 200); // OK
             }
-    
-            return response()->json([
-                'message' => 'Unable to authenticate user.',
-            ], 401); // Unauthorized
+
         } catch (\Exception $e){
             Log::error("Error: " . $e->getMessage());
             return response()->json([
