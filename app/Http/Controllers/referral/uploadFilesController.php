@@ -11,6 +11,7 @@ class uploadFilesController extends Controller
     public function upload(Request $request)
     {
         $uploadDirectory = 'C:\Users\IHOMS-TRISTAN\Desktop\jblmgh-ours-main\src\uploads';
+        // $uploadDirectory = 'Z:/Attachments';
         $maxFileSize = 30 * 1024 * 1024;
         
         if ($request->has('patientID')) {

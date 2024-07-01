@@ -69,6 +69,7 @@ class referrals extends Model
         'addedBy',
         'updatedBy',
         'safru',
+        'isPosted',
         'status',
     ];
 

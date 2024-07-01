@@ -36,6 +36,7 @@ Route::middleware('auth:sanctum')->group(function(){
         Route::get('fetchInboundPatients','fetchInboundPatients');
         Route::get('fetchInboundPatientsOB','fetchInboundPatientsOB');
         Route::get('fetchOutboundPatients','fetchOutboundPatients');
+        Route::get('fetchUnpostedReferrals','fetchUnpostedReferrals');
         Route::get('fetchMasterfile','fetchMasterfile');
         Route::get('fetchCivilStatus','fetchCivilStatus');
         Route::get('fetchNationality','fetchNationality');
@@ -49,9 +50,11 @@ Route::middleware('auth:sanctum')->group(function(){
         Route::get('fetchServiceTypes','fetchServiceTypes');
         Route::get('fetchDoctors','fetchDoctors');
         Route::get('getDashboardStats','getDashboardStats');
+        Route::get('countProcessing','countProcessing');
         Route::post('updatePatientData','updatePatientData');
         Route::post('updateVitalSigns','updateVitalSigns');
         Route::post('createNewReferral','createNewReferral');
+        Route::post('updateReferral','updateReferral');
         Route::post('createReferralSafru','createReferralSafru');
         Route::post('setToOngoing','setToOngoing');
         Route::post('acceptPatient','acceptPatient');

@@ -79,8 +79,8 @@ class AuthenticationController extends Controller
             if(!$user){
                 return response()->json(['No user is authenticated'], 500);
             }
-            Cookie::queue(Cookie::forget('token'));
-            $user->tokens()->delete();
+            // Cookie::queue(Cookie::forget('token'));
+            // $user->tokens()->delete();
             return response()->json([
                 'message' => 'Successfully logged out',
             ]);
@@ -95,19 +95,32 @@ class AuthenticationController extends Controller
     }
 
     public function fetchUsers(Request $request){
-
         $hciID = $request->input('hospital');
+        $verification = $request->input('verification');
     
         $query = User::join('activefacilities', 'users.hciID', '=', 'activefacilities.HealthFacilityCodeShort')
-                ->select('users.*','activefacilities.FacilityName')
+                ->select('users.*', 'activefacilities.FacilityName')
                 ->where('users.status', '=', 1);
+        
         if ($hciID !== null) {
-            $query->where('activefacilities.HealthFacilityCodeShort', $hciID);
+            $query->where('activefacilities.FacilityName', 'LIKE', "%{$hciID}%");
         }
-    
+        if ($verification !== null) {
+            if ($verification == 1) {
+                $query->whereNull('users.email_verified_at')
+                      ->whereNull('users.remember_token');    
+            } else if ($verification == 2) {
+                $query->where(function($query) {
+                    $query->whereNotNull('users.email_verified_at')
+                          ->orWhereNotNull('users.remember_token');
+                });
+            }
+        }
+        
         $data = $query->get();
         return $data;
     }
+    
 
     public function fetchNotifications(Request $request){
         $user_id = $request->input('user_id');
