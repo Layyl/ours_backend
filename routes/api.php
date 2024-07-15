@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\announcementController;
 use App\Http\Controllers\referral\AuthenticationController;
 use App\Http\Controllers\referral\ErCountController;
 use App\Http\Controllers\referral\forgotPasswordController;
@@ -52,6 +53,7 @@ Route::middleware('auth:sanctum')->group(function(){
         Route::get('getDashboardStats','getDashboardStats');
         Route::get('countProcessing','countProcessing');
         Route::post('updatePatientData','updatePatientData');
+        Route::post('updatePatientFiles','updatePatientFiles');
         Route::post('updateVitalSigns','updateVitalSigns');
         Route::post('createNewReferral','createNewReferral');
         Route::post('updateReferral','updateReferral');
@@ -86,11 +88,19 @@ Route::middleware('auth:sanctum')->group(function(){
     
     });
 
+
     Route::controller(uploadFilesController::class)->group(function(){
         Route::post('upload','upload');
     });
     
-
+    Route::controller(announcementController::class)->group(function(){
+        Route::get('fetchAllAnnouncements','fetchAllAnnouncements');
+        Route::get('fetchActiveAnnouncements','fetchActiveAnnouncements');
+        Route::post('createNewAnnouncement','createNewAnnouncement');
+        Route::post('setAnnouncementToExpired','setAnnouncementToExpired');
+        Route::post('removeAnnouncement','removeAnnouncement');
+    
+    });
 
     Route::controller(ErCountController::class)->group(function(){
         Route::get('fetchERCount','fetchERCount');

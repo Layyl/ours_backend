@@ -129,7 +129,8 @@ class printReferralFormController extends Controller
         $data->municipalityDesc = $municipalityDesc ?? '';
         $data->barangayDesc = strtoupper($barangayDesc) ?? '';
         
-        $data->civilStatusDesc = strtoupper($civilStatusDesc->Name) ?? '';
+        $data->civilStatusDesc = isset($civilStatusDesc->Name) ? strtoupper($civilStatusDesc->Name) : '';
+
         
             
 

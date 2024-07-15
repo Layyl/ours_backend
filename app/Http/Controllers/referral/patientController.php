@@ -603,7 +603,7 @@ class patientController extends Controller{
             ->orderBy('patientreferralhistory.created_at', 'desc')
             ->get();
     }
-    
+
     private function calculateAgeString($birthDate){
         $diff = $this->getDateDifference($birthDate);
         $ageString = '';
@@ -625,7 +625,7 @@ class patientController extends Controller{
     
         return trim($ageString);
     }
-    
+
     public function setToOngoing(Request $request){
 
         $updateHistory = referralHistory::where("referralHistoryID", $request-> referralHistoryID)
@@ -666,6 +666,20 @@ class patientController extends Controller{
         $updateHistory = referralHistory::where("referralHistoryID", $request-> referralHistoryID)
         ->update(['referralStatus'=> 3, 'accepted'=> 1]);
 
+        $updateReferral = Referrals::where("referralID", $request->referralID)
+        ->update(['emInCharge'=> $request->emInCharge]);
+
+        $receivingDepartment = $request->receivingDepartment;
+        $receivingDoctor = $request->assignedDoctor;
+        $emResident = $request->emInCharge;
+        $referrerContactNo = $request->referrerContact;
+        $fullName = $request->lastName . ', ' . $request->firstName . ' ' . $request->middleName;
+        $receivingDepartmentName = $this->getServiceTypeName($receivingDepartment);
+        $receivingDoctorName = $this->fetchDoctorName($receivingDoctor);
+        $assignedEMDoc = $this->fetchDoctorName($emResident);
+
+        $this->sendSMSAccept($referrerContactNo, $fullName, $receivingDepartmentName, $receivingDoctorName, $assignedEMDoc);
+
         $user = Auth::user();
         $user_id = $user->id;
         $sent_to = $request->referringHospital;
@@ -683,10 +697,70 @@ class patientController extends Controller{
         $notif->sent_to = $sent_to;
         $notif->sent_at = $dateTime;
         $notif->save();
-
         event(new NewNotification($notification, $user_id, 1, Crypt::encrypt($request->referralID), $request->referralID, Crypt::encrypt($request->referralHistoryID), $sent_to, $date, $time, ''));
-
         return response()->json(["message" => "Success"], 200);
+    }
+
+    private function getServiceTypeName($receivingDepartment){
+        $data = servicetypes::select('Description')
+        ->where('ForERPatient', 1)
+        ->where('ServiceTypeID', $receivingDepartment)
+        ->first();
+        return $data->Description;
+    }
+
+    private function fetchDoctorName($receivingDoctor){
+        $query = doctors::query();
+        $doctors = $query->select('payroll.lname')
+        ->join('position', 'payroll.positionid', '=', 'position.positionid')
+        ->join('department', 'payroll.department', '=', 'department.id')
+        ->where('payroll.status', 'A')
+        ->where('payroll.id', $receivingDoctor)
+        ->where(function ($query) {
+            $query
+                ->orWhere('payroll.positionid', 47);
+        })
+        ->first();
+        return $doctors->lname;
+    }
+
+    private function sendSMSAccept($referringContactNo, $fullName, $receivingDepartment, $receivingDoctor, $assignedEMDoc){
+        $endpoint = 'https://messagingsuite.smart.com.ph/cgphttp/servlet/sendmsg';
+        $username = 'kvzcatz@gmail.com';
+        $password = 'JBLmgh2020!';
+        $message = 'Thank you for using OURS!' . "\n" . 
+        'You may transfer patient ' . $fullName . ' decked under the department of ' . $receivingDepartment . "\n" . 
+        'to be received by Dr. ' . $receivingDoctor. "\n" . 'Remarks: EM Resident facilitating coordination - Dr. ' . $assignedEMDoc;
+
+        $contact = '9458874836';
+        
+        $queryParams = http_build_query([
+            'username' => $username,
+            'password' => $password,
+            'destination' => $contact,
+            'text' => $message
+        ]);
+        $url = $endpoint . '?' . $queryParams;
+
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 30);
+        curl_setopt($ch, CURLOPT_USERAGENT, "Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1)");
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true); 
+
+        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            'Content-Type: application/json',
+        ]); 
+
+        $result = curl_exec($ch); 
+
+        if(curl_errno($ch)){
+            echo 'Curl error: ' . curl_error($ch);
+        } 
+        curl_close($ch);    
+        echo $message;
+        echo $contact;
     }
 
     public function setDepartment(Request $request){
@@ -772,7 +846,7 @@ class patientController extends Controller{
 
     public function setToIntransit(Request $request){  
         $setToInTransit = referrals::where("referralID", $request->referral['referralID'])
-        ->update(['inTransit'=> 1, 'inTransitDateTime'=> NOW()]); //, 'vehicleNumber'=>$request->vehicleNumber,'vehicleType'=>$request->vehicleType, 'eta'=>$request->eta
+        ->update(['inTransit'=> 1, 'inTransitDateTime'=> NOW(), 'vehicleNumber'=>$request->vehicleNumber,'vehicleType'=>$request->vehicleType, 'eta'=>$request->eta]); //
 
         $user = Auth::user();
         $user_id = $user->id;
@@ -854,9 +928,10 @@ class patientController extends Controller{
         event(new NewNotification($notification, $user_id, 11, Crypt::encrypt($request->referralID), $request->referralID, Crypt::encrypt($request->referralHistoryID), $sent_to, $date, $time,''));
 
         return response()->json(["message" => "Success"], 200);
-    }
+        }
    
-    public function reopenReferral(Request $request){
+    
+        public function reopenReferral(Request $request){
         $updated = referralHistory::where("referralHistoryID", $request->referralHistoryID)
         ->update(['referralStatus' => '1']);    
 
@@ -927,6 +1002,7 @@ class patientController extends Controller{
             'referralToFill' => $request->referralToFill,
             'addedBy' => $request->addedBy,
             'updatedBy' => $request->updatedBy,
+            'isRabies' => $request->isRabies,
             'isPosted' => $request->isPosted,
             'status' => 1,
         ]);
@@ -938,8 +1014,9 @@ class patientController extends Controller{
     
         $referralID = $referral->id;
         $referralHistoryID = $referralHistory->id;
-
-        if($request->isPosted == 1){
+        $referringHospital = $request->referringHospital;
+        $fullName = $referral->lastName . ', ' . $referral->firstName . ' ' .  $referral->middleName;
+        if($request->isPosted == '1'){
 
             $user = Auth::user();
             $user_id = $user->id;
@@ -961,9 +1038,58 @@ class patientController extends Controller{
 
             event(new NewNotification($notification, $user_id, 4, Crypt::encrypt($referralID), $request->referralID, Crypt::encrypt($referralHistoryID), $sent_to, $date, $time, ''));
         }
-        return response()->json(["message" => "Referral Created", "referralID" => $referralID], 200);
+        if($request->isPosted == '1'){
+           $referralHospitalName = $this->getReferringHospitalName($referringHospital);
+            // $this->sendSMS($fullName, $referralHospitalName);
+        }
+        return response()->json(["message" => "Referral Created", "referralID" => $referralID, "encryptedReferralID" => Crypt::encrypt($referralID), "encryptedReferralHistoryID" => Crypt::encrypt($referralHistoryID)], 200);
+
     }
+
+    private function getReferringHospitalName($referringHospital){
+            $data = referringHCI::select('FacilityName')
+            ->where('HealthFacilityCodeShort', $referringHospital)
+            ->where('status',1)
+            ->first();
+        return $data->FacilityName;
+    }
+
+    private function sendSMS($fullName, $referralHospitalName){
+        $endpoint = 'https://messagingsuite.smart.com.ph/cgphttp/servlet/sendmsg';
+        $username = 'kvzcatz@gmail.com';
+        $password = 'JBLmgh2020!';
+        $message = 'New referral from ' . $referralHospitalName . ': ' . $fullName;
+        $contact = '9458874836';
+        
+        $queryParams = http_build_query([
+            'username' => $username,
+            'password' => $password,
+            'destination' => $contact,
+            'text' => $message
+        ]);
+        $url = $endpoint . '?' . $queryParams;
     
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 30);
+        curl_setopt($ch, CURLOPT_USERAGENT, "Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1)");
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true); 
+
+        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            'Content-Type: application/json',
+        ]); 
+
+        $result = curl_exec($ch); 
+
+        if(curl_errno($ch)){
+            echo 'Curl error: ' . curl_error($ch);
+        } 
+        curl_close($ch);    
+        echo $message;
+        echo $contact;
+    }
+
     public function updateReferral(Request $request){
         $birthdate = date('Y-m-d', strtotime($request->birthDate));
         $referrerContact = (int)preg_replace('/[^0-9]/', '', $request->referrerContact);
@@ -1027,27 +1153,38 @@ class patientController extends Controller{
             'referralToFill' => $request->referralToFill,
             'addedBy' => $request->addedBy,
             'updatedBy' => $request->updatedBy,
+            'isRabies' => $request->isRabies,   
             'isPosted' => $request->isPosted]);    
 
-        $user = Auth::user();
-        $user_id = $user->id;
-        $sent_to = $request->receivingHospital;
-        $notification = sprintf("You have a new referral: %s %s %s", $request->firstName, $request->middleName, $request->lastName);
-        $dateTime = Carbon::now();
-        $date = $dateTime->format('F j, Y'); 
-        $time = $dateTime->format('g:i A');
-        
-        $notif = new Notifications();
-        $notif->notification = $notification;
-        $notif->notificationType = 4;
-        $notif->referralID = Crypt::encrypt($request->referralID);
-        $notif->referralHistoryID = Crypt::encrypt($request->referralHistoryID);
-        $notif->user_id = $user->id; 
-        $notif->sent_to = $sent_to;
-        $notif->sent_at = $dateTime;
-        $notif->save();
+            $referralID = $request->id;
+            $referralHistoryID = $request->id;
+            $referringHospital = $request->referringHospital;
+            $fullName = $request->lastName . ', ' . $request->firstName . ' ' .  $request->middleName;
+            
+            $user = Auth::user();
+            $user_id = $user->id;
+            $sent_to = $request->receivingHospital;
+            $notification = sprintf("You have a new referral: %s %s %s", $request->firstName, $request->middleName, $request->lastName);
+            $dateTime = Carbon::now();
+            $date = $dateTime->format('F j, Y'); 
+            $time = $dateTime->format('g:i A');
+            
+            $notif = new Notifications();
+            $notif->notification = $notification;
+            $notif->notificationType = 4;
+            $notif->referralID = Crypt::encrypt($request->referralID);
+            $notif->referralHistoryID = Crypt::encrypt($request->referralHistoryID);
+            $notif->user_id = $user->id; 
+            $notif->sent_to = $sent_to;
+            $notif->sent_at = $dateTime;
+            $notif->save();
 
         event(new NewNotification($notification, $user_id, 4, Crypt::encrypt($request->referralID), $request->referralID, Crypt::encrypt($request->referralHistoryID), $sent_to, $date, $time, ''));
+       
+        if($request->isPosted == '1'){
+            $referralHospitalName = $this->getReferringHospitalName($referringHospital);
+            //  $this->sendSMS($fullName, $referralHospitalName);
+         }
         return response()->json(["message" => "Success"], 200);
     }
 
@@ -1390,12 +1527,13 @@ class patientController extends Controller{
     }
 
     public function setToExpired(){
-        $update = referralHistory::where('created_at', '<=', Carbon::now()->subHours(24))
+        $update = referralHistory::leftJoin('patientreferrals as pr', 'patientreferralhistory.referralID', '=', 'pr.referralID')
+            ->where('patientreferralhistory.created_at', '<=', Carbon::now()->subHours(24))
             ->whereNull('arrived')
             ->whereIn('referralStatus', [1, 2, 3])
+            ->where('pr.isPosted', '1')
             ->update(['referralStatus' => '8']);
     }
-    
    
     public function fetchCivilStatus(){
         $data = civilStatus::where('Status', 1)->get();
@@ -1490,34 +1628,38 @@ class patientController extends Controller{
     
         // Inbound Patients Count
         $inboundCount = referralHistory::query()
-            ->where('receivingHospital', '=', $hciID)
-            ->where('referralStatus', '<>', 0)
-            ->count();
+        ->where('receivingHospital', '=', $hciID)
+        ->where('referralStatus', '<>', 0)
+        ->whereDate('created_at', Carbon::today())
+        ->count();
     
         // Outbound Patients Count
         $outboundCount = Referrals::query()
             ->where('referringHospital', '=', $hciID)
             ->where('status', '<>', 0)
+            ->whereDate('created_at', Carbon::today())
             ->count();
-    
+        
         // Accepted Patients Count
         $acceptedCount = referralHistory::query()
             ->where('receivingHospital', '=', $hciID)
             ->where('referralStatus', '=', 2)
+            ->whereDate('created_at', Carbon::today())
             ->count();
-    
+        
         // Deferred Patients Count
         $deferredCount = referralHistory::query()
             ->where('receivingHospital', '=', $hciID)
             ->whereIn('referralStatus', [4, 5])
+            ->whereDate('created_at', Carbon::today())
             ->count();
-    
-        return response()->json([
-            'inboundCount' => $inboundCount,
-            'outboundCount' => $outboundCount,
-            'acceptedCount' => $acceptedCount,
-            'deferredCount' => $deferredCount,
-        ], 200);
+        
+            return response()->json([
+                'inboundCount' => $inboundCount,
+                'outboundCount' => $outboundCount,
+                'acceptedCount' => $acceptedCount,
+                'deferredCount' => $deferredCount,
+            ], 200);
     }
 
     public function createHCI(Request $request){
@@ -1899,5 +2041,13 @@ class patientController extends Controller{
             return response()->json(['message' => 'An error occurred', 'error' => $e->getMessage(), 'status' => 500]);
         }
     }
+
+    public function updatePatientFiles(Request $request){
+
+        $updateHistory = Referrals::where("referralID", $request-> referralID)
+        ->update(['patientFiles'=> $request-> patientFiles]);
+
+        return response()->json(["message" => "Success"], 200);
+            }
 
 }
