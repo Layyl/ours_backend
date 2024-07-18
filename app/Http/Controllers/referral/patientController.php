@@ -1040,7 +1040,7 @@ class patientController extends Controller{
         }
         if($request->isPosted == '1'){
            $referralHospitalName = $this->getReferringHospitalName($referringHospital);
-            // $this->sendSMS($fullName, $referralHospitalName);
+            $this->sendSMS($fullName, $referralHospitalName);
         }
         return response()->json(["message" => "Referral Created", "referralID" => $referralID, "encryptedReferralID" => Crypt::encrypt($referralID), "encryptedReferralHistoryID" => Crypt::encrypt($referralHistoryID)], 200);
 
@@ -1059,7 +1059,7 @@ class patientController extends Controller{
         $username = 'kvzcatz@gmail.com';
         $password = 'JBLmgh2020!';
         $message = 'New referral from ' . $referralHospitalName . ': ' . $fullName;
-        $contact = '9458874836';
+        $contact = '9614715597';
         
         $queryParams = http_build_query([
             'username' => $username,
@@ -1565,11 +1565,13 @@ class patientController extends Controller{
         return $data;
     }
 
-    public function fetchProvince(){
-        $data = province::where("status",1)
-        ->get();
+    public function fetchProvince(Request $request){
+        $query = province::where("status", 1);
+        $data = $query->get();
         return $data;
     }
+    
+    
 
     public function fetchMunicipality(Request $request){
         $data = municipality::where("ProvinceID", $request->ProvinceID)
@@ -1667,6 +1669,12 @@ class patientController extends Controller{
             'FacilityName' => $request->hciName,
             'HealthFacilityCode' => $request->hciDOHCode,
             'HealthFacilityCodeShort' => $request->hciDOHCodeShort,
+            'street' => $request->hciStreet,
+            'region' => $request->hciRegion['psgc10DigitCode'],
+            'province' => $request->hciProvince['psgc10DigitCode'],
+            'municipality' => $request->hciMunicipality['psgc10DigitCode'],
+            'barangay' => $request->hciBarangay['psgc10DigitCode'],
+            'healthFacilityType' => $request->hciType,
             'status' => 1,
         ]);
     

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\referral;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Notifications\CustomVerifyEmailNotification;
 use Illuminate\Auth\Events\Verified;
 use Illuminate\Http\Request;
 
@@ -46,7 +47,8 @@ class verificationController extends Controller
             ]);
         }
 
-        $user->sendEmailVerificationNotification();
+        $notification = new CustomVerifyEmailNotification($user);
+        $user->notify($notification);
 
         return response()->json([
             "message" => "Check your email!",

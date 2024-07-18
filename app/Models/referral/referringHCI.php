@@ -11,6 +11,12 @@ class referringHCI extends Model
         'FacilityName',
         'HealthFacilityCode',
         'HealthFacilityCodeShort',
+        'street',
+        'barangay',
+        'municipality',
+        'province',
+        'region',
+        'healthFacilityType',
         'status',
 
     ];

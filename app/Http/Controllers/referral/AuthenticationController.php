@@ -49,6 +49,13 @@ class AuthenticationController extends Controller
                     'message' => 'Invalid username or password.',
                 ], 200); // Unauthorized
             }
+
+            if (is_null($user->email_verified_at)) {
+                return response()->json([
+                    'status' => 1,
+                    'message' => 'Email not verified.',
+                ], 200); // Unauthorized
+            }
     
             if (Auth::loginUsingId($user->id)) {
                 $token = $user->createToken("API TOKEN")->plainTextToken;
@@ -136,7 +143,7 @@ class AuthenticationController extends Controller
         return response()->json(["notifications" => $notifications, "message" => "Success"], 200);
     }
 
-    public function fetchMessageNotifications(Request $request){
+    public function fetchMessageNotifications(Request $request){+
         $user_id = $request->input('user_id');
         $notifications = Notifications::where('sent_to', $user_id)
         ->where('notificationType', 7)
@@ -159,10 +166,35 @@ class AuthenticationController extends Controller
         return response()->json(["message" => "Success"], 200);
     }
 
+    public function updateEmail(Request $request){
+        $user = User::find($request->userID);
+        if($request->email && $request->email != $user->email){
+            $user->email = $request->email;
+            $user->remember_token = null;
+            $user->email_verified_at = null;
+            $user->save();
+            $notification = new CustomVerifyEmailNotification($user);
+            $user->notify($notification);
+            return response()->json(["title" => "Email Address Changed 🥳", "message" =>  'Email address changed successfully'], 200);
+        }else{
+            return response()->json(["title" => "Email Address Change Unsuccessful", "message" => 'Email address change unsuccessful as this email address is already being used by the user.'], 200);
+        }
+    }
+
+    public function updateNumber(Request $request){
+        $user = User::find($request->userID);
+        if($request->contactno && $request->contactno != $user->contactno){
+            $user->contactno = $request->contactno;
+            $user->save();
+            return response()->json(["title" => "Phone Number Changed 🥳", "message" =>  "You have successfully updated the user's phone number"], 200);
+        }elseif($request->contactno && $request->contactno == $user->contactno){
+            return response()->json(["title" => "Phone Number Change Unsuccessful ⚠️", "message" => 'Phone number change unsuccessful as this number is already being used by the user.y'], 200);
+        }
+    }
+    
     public function removeUser(Request $request){  
         $removeHCI = User::where("id", $request-> userID)
         ->update(['status'=> 0]);
-
         return response()->json(["message" => "Success"], 200);
     }
 }

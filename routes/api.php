@@ -84,6 +84,8 @@ Route::middleware('auth:sanctum')->group(function(){
         Route::post('logout','logout');
         Route::post('createAccount','createAccount');
         Route::post('updatePassword','updatePassword');
+        Route::post('updateEmail','updateEmail');
+        Route::post('updateNumber','updateNumber');
         Route::post('removeUser','removeUser');
     
     });
@@ -132,4 +134,7 @@ Route::group(['middleware' => 'api'], function () {
     Route::post('setPassword', [SetPasswordController::class, 'setPassword'])->name('api.setPassword');
 });
 
+Route::controller(verificationController::class)->group(function(){
+    Route::post('resendVerificationEmail','resendVerificationEmail');
+});
 

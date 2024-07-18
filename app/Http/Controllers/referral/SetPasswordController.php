@@ -5,6 +5,7 @@ namespace App\Http\Controllers\referral;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ResetPasswordRequest;
 use Illuminate\Auth\Events\PasswordReset;
+use Illuminate\Auth\Events\Verified;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Hash;
@@ -54,6 +55,10 @@ class SetPasswordController extends Controller
     {
         $user->password = Hash::make($password);
 
+        if ($user->markEmailAsVerified()) {
+            event(new Verified($user));
+        }
+        
         $user->setRememberToken(Str::random(60));
 
         $user->save();
